@@ -116,7 +116,8 @@ table.cmp td.click:hover{background:var(--accent-soft)}
 .taglist{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px}
 .tag{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;font-size:13px}
 .who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
-#bpick{font-weight:700;border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+#bpick summary{font-weight:700;border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-family:var(--f-body)}
+#bpick .mlist{inset-inline-start:auto;inset-inline-end:0}
 .login{max-width:380px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:12px}
 .login label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:13px}
 .login input{padding:9px 10px}
@@ -154,7 +155,7 @@ table.xl tfoot td.gap{background:var(--bg)}
 table.xl.tot td{padding:0 10px;white-space:nowrap}
 table.xl.tot td.strong{font-weight:700}
 .mpick{position:relative}
-.mpick summary{list-style:none;cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 28px 6px 10px;font-family:var(--f-num);white-space:nowrap;position:relative}
+.mpick summary{list-style:none;cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding-block:6px;padding-inline:10px 28px;font-family:var(--f-num);white-space:nowrap;position:relative}
 .mpick summary::-webkit-details-marker{display:none}
 .mpick summary::after{content:"▾";position:absolute;inset-inline-end:10px;color:var(--muted)}
 .mpick .mlist{position:absolute;z-index:4;inset-inline-start:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:4px;min-width:190px;max-height:320px;overflow:auto;box-shadow:0 6px 20px color-mix(in srgb,var(--fg) 14%,transparent)}
@@ -165,6 +166,15 @@ table.xl.tot td.strong{font-weight:700}
 .kpis.k12{grid-template-columns:repeat(6,minmax(0,1fr))}
 @media (max-width:900px){.kpis.k12{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:560px){.kpis.k12{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* الأرقام في نص الخلية */
+td.n,th.n,table td.n,table th.n{text-align:center!important}
+input.n,table.xl input.n,.ledger input.n{text-align:center!important}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.ptable td.pc{text-align:center;vertical-align:middle;padding:8px}
+.ptable td.pc .note{font-size:11px;margin:2px 0 4px}
+.ptable td.is-closed{background:color-mix(in srgb,var(--exp) 7%,transparent)}
+.chip.lockc{color:var(--exp)}
+.ro-banner.lockb{border-color:color-mix(in srgb,var(--exp) 40%,var(--line));background:color-mix(in srgb,var(--exp) 6%,var(--surface))}
 .loading{padding:40px 0;text-align:center;color:var(--muted)}
 @media (max-width:560px){.kpi .v{font-size:17px}.kpi.hero .v{font-size:20px}nav{margin-inline-start:0;width:100%}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -176,13 +186,14 @@ table.xl.tot td.strong{font-weight:700}
 <header><div class="wrap top">
   <div class="brand">Cashier</div>
   <button class="btn install" id="installBtn" type="button" hidden>⬇ تنزيل التطبيق</button>
-  <select id="bpick" aria-label="الفرع" hidden></select>
+  <details class="mpick bpick" id="bpick" hidden><summary id="bsum"></summary><div class="mlist" id="blist"></div></details>
   <nav id="nav">
     <button data-v="day" aria-current="true">اليومية</button>
     <button data-v="total">إجمالي الشهر</button>
     <button data-v="month">ملخص الشهر</button>
     <button data-v="cats">تحليل المصروفات</button>
     <button data-v="settings">التصنيفات</button>
+    <button data-v="periods">غلق الفترات</button>
     <button data-v="audit">سجل التعديلات</button>
     <button data-v="backup">النسخ الاحتياطي والتشفير</button>
     <button data-v="users">المستخدمين</button>
@@ -278,14 +289,14 @@ const trimRows=rows=>{const r=rows.slice();while(r.length&&!rowFilled(r[r.length
 function rowTxt(r){const parts=[...REV,...EXPK].filter(k=>num(r[k])).map(k=>LBL[k]+' '+fmt(r[k]));return (parts.join(' + ')||'صف فاضي')+(r.desc?' ('+r.desc+')':'');}
 const DAYNAMES=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let db=null, dl=null, canWrite=true, ready=false;
-const BR={'50':{name:'RAJ 50',coll:'days'},'kaf':{name:'الكفراوي',coll:'days_kaf'},'bun':{name:'Bunwich',coll:'days_bun'}};
-let daysBy=Object.fromEntries(Object.keys(BR).map(b=>[b,{}])), curBranch='50';
+const BR={'50':{name:'RAJ 50',en:'RAJ50',coll:'days'},'kaf':{name:'الكفراوي',en:'Kafrawy',coll:'days_kaf'},'bun':{name:'Bunwich',en:'Bunwich',coll:'days_bun'}};
+let daysBy=Object.fromEntries(Object.keys(BR).map(b=>[b,{}])), curBranch='50', selBr=['50'];
 let days=daysBy['50'];            // date -> {date,rev,exp,ext}
 let users={}, me=null, usersLoaded=false, cuser=null, isClaudeOwner=false;
 const ROLES={owner:'المالك',admin:'مدير',cashier:'كاشير'};
-const PERMS={day_edit:'إدخال وإقفال اليومية',past:'تعديل الأيام السابقة',review:'مراجعة واعتماد اليومية',reopen:'فتح يومية مقفولة',total:'إجمالي الشهر',month:'ملخص الشهر',cats:'تحليل المصروفات',settings:'التصنيفات',audit:'سجل التعديلات',backup:'النسخ الاحتياطي',users:'المستخدمين والصلاحيات'};
+const PERMS={day_edit:'إدخال وإقفال اليومية',past:'تعديل الأيام السابقة',review:'مراجعة واعتماد اليومية',reopen:'فتح يومية مقفولة',total:'إجمالي الشهر',month:'ملخص الشهر',cats:'تحليل المصروفات',settings:'التصنيفات',periods:'غلق وفتح الفترات',audit:'سجل التعديلات',backup:'النسخ الاحتياطي',users:'المستخدمين والصلاحيات'};
 const ROLE_PERMS={owner:Object.keys(PERMS),admin:['day_edit','past','review','reopen','total','month','cats','settings','audit','backup'],cashier:['day_edit']};
-const VIEW_PERM={day:null,total:'total',month:'month',cats:'cats',settings:'settings',audit:'audit',backup:'backup',users:'users'};
+const VIEW_PERM={day:null,periods:'periods',total:'total',month:'month',cats:'cats',settings:'settings',audit:'audit',backup:'backup',users:'users'};
 let settings={cats:[],map:{}};
 let view='day';
 const today=new Date(); const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -366,7 +377,7 @@ function render(){
   $('#whoname').textContent=(users[me]?.name||me)+' · '+ROLES[users[me]?.role||'cashier'];
   const ae=document.activeElement, aid=ae&&ae.id, sel=ae&&ae.selectionStart;
   app.innerHTML=(!canWrite?'<div class="ro-banner">أنت تشاهد السيستم للعرض فقط؛ التعديل متاح لمن لديه صلاحية التعديل.</div>':'')+
-    (view==='day'?renderDay():view==='total'?renderTotal():view==='month'?renderMonth():view==='cats'?renderCats():view==='users'?renderUsers():view==='audit'?renderAudit():view==='backup'?renderBackup():renderSettings());
+    (view==='day'?renderDay():view==='total'?renderTotal():view==='month'?renderMonth():view==='cats'?renderCats():view==='users'?renderUsers():view==='periods'?renderPeriods():view==='audit'?renderAudit():view==='backup'?renderBackup():renderSettings());
   if(aid){const el=document.getElementById(aid); if(el){el.focus(); try{if(sel!=null&&el.setSelectionRange)el.setSelectionRange(sel,sel);}catch(e){}}}
 }
 function catOptions(selected,withAuto,autoLabel){
@@ -377,7 +388,7 @@ function catOptions(selected,withAuto,autoLabel){
 function kpi(label,val,cls,hero){return `<div class="kpi${hero?' hero':''}"><span class="l">${cls?`<i class="dot ${cls}"></i>`:''}${label}</span><span class="v">${fmt(val)}</span></div>`;}
 const dis=()=>canWrite?'':' disabled';
 
-function closeBox(d,t){const st=dayStatus(d);const has_=hasData(t);
+function closeBox(d,t){const st=dayStatus(d);const has_=hasData(t);const pc=curBranch!=='all'&&isClosed(curBranch,curDate);
   const diff=d.diff||0, dtxt=diff===0?'<span class="ok">مطابق</span>':`<span style="color:var(--exp);font-weight:700">${diff<0?'عجز':'زيادة'} ${fmt(Math.abs(diff))}</span>`;
   if(st==='open'){
     if(!has_&&!d.reopenedBy)return '';
@@ -386,9 +397,9 @@ function closeBox(d,t){const st=dayStatus(d);const has_=hasData(t);
   return `<section class="panel closebox"><div class="ph">${st==='reviewed'?'<span class="chip cash">معتمدة</span>':'<span class="chip visa">مقفولة</span>'}<h2>${st==='reviewed'?'يومية مراجَعة ومعتمدة':'يومية مقفولة'}</h2>
     <span class="note">أقفلها ${esc(userName(d.closedBy))} · ${esc(fmtTime(d.closedAt))}${d.reviewedBy?` · اعتمدها ${esc(userName(d.reviewedBy))} · ${esc(fmtTime(d.reviewedAt))}`:''}</span></div>
     <div class="adds"><span>المتوقع <b class="num">${fmt(t.net)}</b></span><span>الفعلي <b class="num">${fmt(d.counted)}</b></span><span>${dtxt}</span><span class="grow"></span>
-    ${st==='closed'&&has('review')&&d.closedBy!==me&&canWrite?'<button class="btn pri" data-act="reviewday">مراجعة واعتماد</button>':''}
+    ${st==='closed'&&has('review')&&d.closedBy!==me&&canWrite&&!pc?'<button class="btn pri" data-act="reviewday">مراجعة واعتماد</button>':''}
     ${st==='closed'&&has('review')&&d.closedBy===me?'<span class="note">الاعتماد لازم يكون من شخص غير اللي أقفل اليومية.</span>':''}
-    ${has('reopen')&&canWrite?'<button class="btn" data-act="reopenday">فتح اليومية للتعديل</button>':''}</div></section>`;}
+    ${has('reopen')&&canWrite&&!pc?'<button class="btn" data-act="reopenday">فتح اليومية للتعديل</button>':''}</div></section>`;}
 function renderDay(){
   const d=days[curDate]||{rows:[]}; const t=dayTot(d); const ce=canEditDay();
   const dt=new Date(curDate+'T00:00:00');
@@ -409,8 +420,8 @@ function renderDay(){
     <button class="btn" data-act="next" aria-label="اليوم التالي">←</button>
     <button class="btn" data-act="today">اليوم</button>
     <div class="daylabel">${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}<span>${DAYNAMES[dt.getDay()]}</span></div>
-    <span class="grow"></span>${d.by?`<span class="note">آخر تعديل: ${esc(userName(d.by))} · ${esc(fmtTime(d.at))}</span>`:''}
-  </div>${!ce&&curBranch!=='all'&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض كل الفروع للعرض فقط. اختر فرعاً من أعلى للإدخال.</div>':''}
+    <span class="grow"></span>${d.by?`<span class="note">آخر تعديل: ${esc(userName(d.by))} · ${esc(fmtTime(d.at))}</span>`:''}${repBtns()}
+  </div>${lockBanner()}${!ce&&curBranch!=='all'&&!isClosed(curBranch,curDate)&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض أكتر من فرع مع بعض للعرض فقط. اختار فرع واحد من فوق علشان تدخّل بيانات.</div>':''}
   <div class="kpis k12" id="daykpis">${dayKpis(t)}</div>
   ${curBranch!=='all'?closeBox(d,t):''}
   <section class="panel sheet"><div class="scroll"><table class="xl">
@@ -434,7 +445,7 @@ function renderTotal(){
   const list=monthDays(curMonth).map(dt=>[dt,dayTot(days[dt])]);
   const T=dayTot(null);for(const[,t]of list)for(const k in T)T[k]+=t[k];
   const cols=[['rev','إجمالي الإيرادات'],['cash','كاش'],['visa','فيزا'],['tcash','طلبات كاش'],['tvisa','طلبات فيزا'],['fin','تمويل'],['expAll','إجمالي المصروفات'],['exp','مصروفات'],['ext','مصروف خارجي'],['bank','مصروف من البنك'],['adv','السلف'],['net','صافي الكاش']];
-  return `<div class="bar"><h2>إجمالي الشهر · ${esc(brLabel())}</h2><select id="mpick" aria-label="الشهر">${monthOptions()}</select><span class="grow"></span>${dl?'<button class="btn" data-act="totcsv">تصدير Excel</button>':''}</div>
+  return `<div class="bar"><h2>إجمالي الشهر · ${esc(brLabel())}</h2><select id="mpick" aria-label="الشهر">${monthOptions()}</select><span class="grow"></span>${repBtns()}</div>${lockBanner()}
   <div class="kpis k12">${dayKpis(T)}</div>
   <section class="panel"><div class="scroll"><table class="xl tot">
     <thead><tr><th>التاريخ</th>${cols.map(([,l])=>`<th class="n">${l}</th>`).join('')}</tr></thead>
@@ -457,11 +468,11 @@ function monthOptions(){
   const ms=new Set(Object.keys(days).map(k=>k.slice(0,7))); ms.add(curDate.slice(0,7)); ms.add(iso(today).slice(0,7));
   return [...ms].sort().reverse().map(m=>`<option value="${m}"${m===curMonth?' selected':''}>${m}</option>`).join('');
 }
-function statCells(dt,hd){if(curBranch==='all'){let df=0,open=0;for(const b of userBranches()){const d=daysBy[b][dt];if(d){df+=d.diff||0;if(dayStatus(d)==='open'&&(d.rows||[]).some(rowFilled))open++;}}
+function statCells(dt,hd){if(curBranch==='all'){let df=0,open=0;for(const b of selBr){const d=daysBy[b][dt];if(d){df+=d.diff||0;if(dayStatus(d)==='open'&&(d.rows||[]).some(rowFilled))open++;}}
     return `<td class="n">${df?`<span style="color:var(--exp)">${fmt(df)}</span>`:''}</td><td>${hd?(open?`<span class="chip adv">${open} مفتوحة</span>`:'<span class="chip visa">مقفولة</span>'):''}</td>`;}
   const d=days[dt];if(!d||!hd)return '<td></td><td></td>';const st=dayStatus(d);
   return `<td class="n">${st!=='open'&&d.diff?`<span style="color:var(--exp)">${fmt(d.diff)}</span>`:st!=='open'?'<span class="ok">0</span>':''}</td><td>${st==='reviewed'?'<span class="chip cash">معتمدة</span>':st==='closed'?'<span class="chip visa">مقفولة</span>':'<span class="chip adv">مفتوحة</span>'}</td>`;}
-function sumDiff(m){let s=0;for(const dt of monthDays(m||curMonth)){if(curBranch==='all'){for(const b of userBranches())s+=daysBy[b][dt]?.diff||0;}else s+=days[dt]?.diff||0;}return s;}
+function sumDiff(m){let s=0;for(const dt of monthDays(m||curMonth)){if(curBranch==='all'){for(const b of selBr)s+=daysBy[b][dt]?.diff||0;}else s+=days[dt]?.diff||0;}return s;}
 let selMonths=null, mpOpen=false;
 function selMs(){const all=allMonths();let m=(selMonths||[curMonth]).filter(x=>all.includes(x));if(!m.length)m=[curMonth];return m.sort();}
 function allMonths(){const ms=new Set(Object.keys(days).map(k=>k.slice(0,7)));ms.add(curMonth);ms.add(iso(today).slice(0,7));return [...ms].sort().reverse();}
@@ -492,7 +503,7 @@ function renderMonth(){
     body=`<thead><tr><th>اليوم</th>${TH}<th>الحالة</th></tr></thead><tbody>${rows.map(([dt,t])=>{const d=new Date(dt+'T00:00:00');const has=hasData(t);return `<tr class="click${dt===iso(today)?' today':''}" data-go="${dt}" tabindex="0">
       <td>${d.getDate()} <span class="note">${DAYNAMES[d.getDay()]}</span></td>
       <td class="n" style="font-weight:600">${has?fmt(t.net):'—'}</td><td class="n">${has?fmt(t.rev):'—'}</td>${nums(t)}${bar(t,max)}${tail(t)}${statCells(dt,has)}</tr>`}).join('')}</tbody>${foot(T.net)}`;}
-  return `<div class="bar"><h2>${multi?'ملخص الشهور':'ملخص الشهر'} · ${esc(brLabel())}</h2>${monthPicker()}<span class="grow"></span>${dl?'<button class="btn" data-act="csv">تصدير Excel</button>':''}</div>
+  return `<div class="bar"><h2>${multi?'ملخص الشهور':'ملخص الشهر'} · ${esc(brLabel())}</h2>${monthPicker()}<span class="grow"></span>${repBtns()}</div>
   <div class="kpis">
     ${kpi('إجمالي الإيراد',T.rev)}${kpi('كاش',T.cash,'cash')}${kpi('فيزا',T.visa,'visa')}${kpi('طلبات',T.talabat,'talabat')}
     ${kpi('مصروفات',T.exp,'exp')}${kpi('سلف',T.adv,'adv')}${kpi('مصروف خارجي',T.ext)}${kpi('مصروف من البنك',T.bank)}${kpi('تمويل',T.fin)}
@@ -535,7 +546,7 @@ function renderCmp(){
   <p class="note">المصروفات هنا تشمل المصروفات والمصروف الخارجي والمصروف من البنك والسلف. يُعرض آخر 12 شهراً فيها بيانات.</p>`;
 }
 function renderCats(){
-  const modeBar=`<div class="bar"><div class="seg" role="tablist"><button class="btn${catMode==='one'?' on':''}" data-mode="one" aria-pressed="${catMode==='one'}">شهر واحد</button><button class="btn${catMode==='cmp'?' on':''}" data-mode="cmp" aria-pressed="${catMode==='cmp'}">مقارنة الشهور</button></div>${catMode==='cmp'&&dl?'<span class="grow"></span><button class="btn" data-act="cmpcsv">تصدير Excel</button>':''}</div>`;
+  const modeBar=`<div class="bar"><div class="seg" role="tablist"><button class="btn${catMode==='one'?' on':''}" data-mode="one" aria-pressed="${catMode==='one'}">شهر واحد</button><button class="btn${catMode==='cmp'?' on':''}" data-mode="cmp" aria-pressed="${catMode==='cmp'}">مقارنة الشهور</button></div><span class="grow"></span>${repBtns()}</div>`;
   if(catMode==='cmp') return modeBar+`<h2>مقارنة المصروفات بين الشهور · ${esc(brLabel())}</h2>`+renderCmp();
   return modeBar+renderCatsOne();
 }
@@ -575,7 +586,7 @@ function renderSettings(){
 
 /* ---------- events ---------- */
 document.addEventListener('toggle',e=>{if(e.target.id==='mpd')mpOpen=e.target.open;},true);
-document.addEventListener('click',e=>{if(mpOpen&&!e.target.closest('#mpd')){mpOpen=false;const d=$('#mpd');if(d)d.open=false;}});
+document.addEventListener('click',e=>{if(mpOpen&&!e.target.closest('#mpd')){mpOpen=false;const d=$('#mpd');if(d)d.open=false;}const bp=$('#bpick');if(bp&&bp.open&&!e.target.closest('#bpick'))bp.open=false;});
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;view=b.dataset.v;focusCat=null;try{localStorage.setItem('cashier.view',view)}catch(_){}render();window.scrollTo(0,0);});
 function shift(n){flushAllAudit();const d=new Date(curDate+'T00:00:00');d.setDate(d.getDate()+n);curDate=iso(d);curMonth=curDate.slice(0,7);render();}
 app.addEventListener('click',async e=>{
@@ -593,7 +604,7 @@ app.addEventListener('click',async e=>{
   if(a==='csv')return exportCsv();
   if(a==='addcat'){const v=$('#newcat').value.trim();if(v&&!settings.cats.includes(v)){settings.cats.push(v);saveSettings();}return render();}
   if(a==='addmap'){const k=$('#newdesc').value.trim(),c=$('#newdesccat').value;if(k&&c){settings.map[k]=c;saveSettings();}return render();}
-  if(t.dataset.go){if(t.dataset.gb&&userBranches().includes(t.dataset.gb)){curBranch=t.dataset.gb;applyBranch();}curDate=t.dataset.go;curMonth=curDate.slice(0,7);view='day';return render();}
+  if(t.dataset.go){if(t.dataset.gb&&userBranches().includes(t.dataset.gb)){setBranches([t.dataset.gb]);}curDate=t.dataset.go;curMonth=curDate.slice(0,7);view='day';return render();}
   if(t.dataset.cat){focusCat=t.dataset.cat;return render();}
   if(t.dataset.delcat!=null){settings.cats.splice(+t.dataset.delcat,1);saveSettings();return render();}
   if(t.dataset.delmap!=null){delete settings.map[t.dataset.delmap];saveSettings();return render();}
@@ -651,6 +662,98 @@ async function exportCsv(){
   try{await dl.save({filename:`Cashier-${selMs().length>1?selMs()[0]+'_'+selMs().slice(-1)[0]:selMs()[0]}.csv`,data:new Blob([csv],{type:'text/csv'})});}catch(e){if(e&&e.code==='unavailable'){dl=null;render();}}
 }
 
+/* ---------- طباعة و Excel ---------- */
+const repBtns=()=>`<button class="btn" data-act="print">🖨 طباعة</button><button class="btn" data-act="xlsx">⬇ Excel</button>`;
+const dmy=dt=>`${dt.slice(8,10)}/${dt.slice(5,7)}/${dt.slice(0,4)}`;
+const z=v=>v?v:'';
+function reportFor(v){
+  const br=brLabel(), brA=(curBranch==='all'?selBr:[curBranch]).map(b=>BR[b].en).join('+');
+  if(v==='day'){const d=days[curDate]||{rows:[]};const t=dayTot(d);const dt=new Date(curDate+'T00:00:00');
+    const rows=(d.rows||[]).filter(rowFilled).map(r=>[z(revSum(r)),...REV.map(k=>z(num(r[k]))),'',z(expSum(r)),...EXPK.map(k=>z(num(r[k]))),lineCat(r),r.desc||'']);
+    const sum=[['إجمالي الإيرادات',t.rev],['كاش',t.cash],['فيزا',t.visa],['طلبات كاش',t.tcash],['طلبات فيزا',t.tvisa],['تمويل',t.fin],['إجمالي المصروفات',t.expAll],['مصروفات',t.exp],['مصروف خارجي',t.ext],['مصروف من البنك',t.bank],['السلف',t.adv],['صافي الكاش في الدرج',t.net]];
+    if(dayStatus(d)!=='open'){sum.push(['النقدية الفعلية',d.counted||0],['عجز / زيادة',d.diff||0]);}
+    return {key:'اليومية',title:'اليومية',sub:`${br} · ${DAYNAMES[dt.getDay()]} ${dmy(curDate)}`,file:`Daily-${brA}-${curDate}`,sections:[
+      {name:'اليومية',head:[[{t:'أولاً : الإيرادات',c:6},'',{t:'ثانياً : المصروفات',c:7}],['الإجمالي',...REV.map(k=>LBL[k]),'','الإجمالي',...EXPK.map(k=>LBL[k]),'التوجيه','الوصف']],rows,
+       foot:['',...[t.rev,...REV.map(k=>t[k])].slice(1),'',t.expAll,...EXPK.map(k=>t[k]),'',''].map((x,i)=>i===0?t.rev:x)},
+      {name:'الملخص',head:[['البند','المبلغ']],rows:sum}]};}
+  if(v==='total'){const cols=[['rev','إجمالي الإيرادات'],['cash','كاش'],['visa','فيزا'],['tcash','طلبات كاش'],['tvisa','طلبات فيزا'],['fin','تمويل'],['expAll','إجمالي المصروفات'],['exp','مصروفات'],['ext','مصروف خارجي'],['bank','مصروف من البنك'],['adv','السلف'],['net','صافي الكاش']];
+    const T=dayTot(null);const rows=monthDays(curMonth).map(dt=>{const t=dayTot(days[dt]);for(const k in T)T[k]+=t[k];const d=new Date(dt+'T00:00:00');return [`${dmy(dt)} ${DAYNAMES[d.getDay()]}`,...cols.map(([k])=>hasData(t)?(t[k]||(k==='net'?0:'')):'')];});
+    return {key:'إجمالي الشهر',title:'إجمالي الشهر',sub:`${br} · ${curMonth}`,file:`Month-Total-${brA}-${curMonth}`,sections:[{name:'إجمالي الشهر',head:[['التاريخ',...cols.map(c=>c[1])]],rows,foot:['الإجمالي',...cols.map(([k])=>T[k])]}]};}
+  if(v==='month'){const ms=selMs(),multi=ms.length>1;const H=['صافي الكاش','الإجمالي','كاش','فيزا','طلبات','مصروفات','سلف','مصروف خارجي','من البنك','تمويل','عجز / زيادة'];
+    const line=t=>[t.net,t.rev,t.cash,t.visa,t.talabat,t.exp,t.adv,t.ext,t.bank,t.fin];const T=dayTot(null);let D=0;
+    let rows;
+    if(multi){rows=ms.map(m=>{const t=monthTot(m);for(const k in T)T[k]+=t[k]||0;D+=t.diff;return [m,...line(t).map(z),t.diff||0];});}
+    else rows=monthDays(curMonth).map(dt=>{const t=dayTot(days[dt]);for(const k in T)T[k]+=t[k];const dd=curBranch==='all'?selBr.reduce((s,b)=>s+(daysBy[b][dt]?.diff||0),0):(days[dt]?.diff||0);D+=dd;
+      const st=curBranch==='all'?'':(hasData(t)?({open:'مفتوحة',closed:'مقفولة',reviewed:'معتمدة'})[dayStatus(days[dt])]:'');const d=new Date(dt+'T00:00:00');
+      return [`${dmy(dt)} ${DAYNAMES[d.getDay()]}`,...(hasData(t)?line(t).map(z):line(t).map(()=>'')),z(dd),st];});
+    return {key:'ملخص الشهر',title:multi?'ملخص الشهور':'ملخص الشهر',sub:`${br} · ${multi?ms[0]+' ← '+ms[ms.length-1]:curMonth}`,file:`Month-Summary-${brA}-${multi?ms[0]+'_'+ms[ms.length-1]:curMonth}`,
+      sections:[{name:'ملخص الشهر',head:[[multi?'الشهر':'اليوم',...H,...(multi?[]:['الحالة'])]],rows,foot:['الإجمالي',...line(T),D,...(multi?[]:[''])]}]};}
+  if(v==='cats'){
+    if(catMode==='cmp'){const ms=dataMonths();const data=ms.map(m=>{const by={};let tot=0;for(const l of monthLines(m)){const c=l.cat||'غير مصنف';by[c]=(by[c]||0)+l.amt;tot+=l.amt;}let rev=0;for(const dt of monthDays(m))rev+=dayTot(days[dt]).rev;return{by,tot,rev};});
+      const cats=[...new Set([...settings.cats,...data.flatMap(x=>Object.keys(x.by))])].filter(c=>data.some(x=>x.by[c]));const S=f=>data.reduce((s,x)=>s+f(x),0);const n=ms.length||1;
+      cats.sort((a,b)=>S(x=>x.by[b]||0)-S(x=>x.by[a]||0));
+      const rows=[['إجمالي الإيراد',...data.map(x=>x.rev),S(x=>x.rev),S(x=>x.rev)/n],...cats.map(c=>[c,...data.map(x=>z(x.by[c]||0)),S(x=>x.by[c]||0),S(x=>x.by[c]||0)/n])];
+      return {key:'تحليل المصروفات',title:'مقارنة المصروفات بين الشهور',sub:br,file:`Expense-Compare-${brA}`,sections:[{name:'مقارنة الشهور',head:[['التصنيف',...ms,'الإجمالي','المتوسط']],rows,foot:['إجمالي المصروفات',...data.map(x=>x.tot),S(x=>x.tot),S(x=>x.tot)/n]}]};}
+    const L=monthLines();const by={};let total=0;for(const l of L){const c=l.cat||'غير مصنف';(by[c]=by[c]||{sum:0,n:0}).sum+=l.amt;by[c].n++;total+=l.amt;}
+    const arr=Object.entries(by).sort((a,b)=>b[1].sum-a[1].sum);
+    const KN={exp:'مصروفات',ext:'مصروف خارجي',bank:'مصروف من البنك',adv:'سلفة'};
+    const lines=L.slice().sort((a,b)=>(a.cat||'').localeCompare(b.cat||'','ar')||a.dt.localeCompare(b.dt)).map(l=>[dmy(l.dt),l.cat||'غير مصنف',KN[l.kind]||'',l.desc||'',l.amt]);
+    return {key:'تحليل المصروفات',title:'تحليل المصروفات',sub:`${br} · ${curMonth}`,file:`Expense-Analysis-${brA}-${curMonth}`,sections:[
+      {name:'التصنيفات',head:[['التصنيف','عدد البنود','المبلغ','النسبة']],rows:arr.map(([c,x])=>[c,x.n,x.sum,(total?Math.round(x.sum/total*1000)/10:0)+'%']),foot:['الإجمالي',L.length,total,'100%']},
+      {name:'البنود',head:[['التاريخ','التصنيف','النوع','الوصف','المبلغ']],rows:lines,foot:['الإجمالي','','','',total]}]};}
+  return null;
+}
+function expandHead(rowsH){return rowsH.map(r=>{const out=[];for(const c of r){if(c&&typeof c==='object'){out.push(c);for(let i=1;i<c.c;i++)out.push(null);}else out.push(c);}return out;});}
+function printReport(rep){if(!rep)return;
+  const w=window.open('','_blank');if(!w){setStatus('المتصفح منع فتح الصفحة. اسمح بالنوافذ المنبثقة للموقع ده.');return;}
+  const cell=(v,tag)=>{const isN=typeof v==='number';return `<${tag}${isN?' class="n"':''}>${isN?fmt(v):esc(v??'')}</${tag}>`;};
+  const secs=rep.sections.map(s=>`<h2>${esc(s.name)}</h2><table><thead>${s.head.map(r=>`<tr>${r.map(c=>c&&typeof c==='object'?`<th colspan="${c.c}">${esc(c.t)}</th>`:`<th>${esc(c)}</th>`).join('')}</tr>`).join('')}</thead>
+    <tbody>${s.rows.length?s.rows.map(r=>`<tr>${r.map(v=>cell(v,'td')).join('')}</tr>`).join(''):`<tr><td colspan="${expandHead(s.head)[expandHead(s.head).length-1].length}" class="empty">لا توجد بيانات</td></tr>`}</tbody>
+    ${s.foot?`<tfoot><tr>${s.foot.map(v=>cell(v,'td')).join('')}</tr></tfoot>`:''}</table>`).join('');
+  w.document.open();w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(rep.title)} · ${esc(rep.sub)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+@page{size:A4 landscape;margin:10mm}
+*{box-sizing:border-box}body{margin:0;background:#EEF2F1;color:#14211E;font-family:"IBM Plex Sans Arabic",system-ui,Tahoma,sans-serif;font-size:12px}
+.tool{position:sticky;top:0;display:flex;gap:8px;align-items:center;padding:10px 16px;background:#14211E;color:#fff}
+.tool button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;background:#fff;color:#14211E}.tool button.pri{background:#3FC79C}
+.tool span{margin-inline-start:auto;opacity:.75;font-size:12px}
+.page{max-width:1120px;margin:16px auto;background:#fff;padding:18px 20px;border-radius:10px}
+header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0E6E55;padding-bottom:8px;margin-bottom:10px}
+h1{margin:0;font-size:20px;color:#0E6E55}h1 small{display:block;font-size:13px;color:#14211E;font-weight:600;margin-top:2px}
+.meta{font-size:11px;color:#5B6B67;text-align:left}
+h2{font-size:14px;margin:14px 0 6px}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th,td{border:1px solid #C9D5D1;padding:4px 6px;text-align:center}
+td:not(.n){text-align:start}
+th{background:#E3EEEA;font-weight:700}
+td.n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tfoot td{background:#F1F5F4;font-weight:700}
+.empty{color:#5B6B67;text-align:center}
+@media print{body{background:#fff}.tool{display:none}.page{margin:0;max-width:none;padding:0;border-radius:0}tr{break-inside:avoid}thead{display:table-header-group}}
+</style></head><body>
+<div class="tool"><button class="pri" onclick="window.print()">🖨 طباعة / حفظ PDF</button><button onclick="window.__xlsx&&window.__xlsx()">⬇ تحميل Excel</button><button onclick="window.close()">إغلاق</button><span>لحفظه PDF: اختار «Save as PDF» من شاشة الطباعة</span></div>
+<div class="page"><header><h1>${esc(rep.title)}<small>${esc(rep.sub)}</small></h1><div class="meta">Cashier · طُبع بواسطة ${esc(userName(me))}<br>${esc(fmtTime(new Date().toISOString()))}</div></header>${secs}</div>
+</body></html>`);w.document.close();
+  w.__xlsx=()=>xlsxReport(rep);
+}
+function xlsxReport(rep){if(!rep)return;if(!window.XLSX){setStatus('مكتبة Excel ماتحمّلتش، جرب تاني');return;}
+  const wb=XLSX.utils.book_new();const used=new Set();
+  for(const s of rep.sections){const aoa=[[rep.title],[rep.sub],[]];const merges=[];
+    for(const r of s.head){const row=[];for(const c of r){if(c&&typeof c==='object'){merges.push({s:{r:aoa.length,c:row.length},e:{r:aoa.length,c:row.length+c.c-1}});row.push(c.t);for(let i=1;i<c.c;i++)row.push('');}else row.push(c);}aoa.push(row);}
+    for(const r of s.rows)aoa.push(r);if(s.foot)aoa.push(s.foot);
+    const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!merges']=merges;
+    const width=Math.max(...aoa.map(r=>r.length));ws['!cols']=Array.from({length:width},(_,i)=>({wch:i===0?16:14}));
+    for(const k of Object.keys(ws)){if(k[0]==='!')continue;const c=ws[k];if(c.t==='n')c.z='#,##0.00';}
+    let nm=s.name.replace(/[\\\/\?\*\[\]:]/g,'-').slice(0,31);while(used.has(nm))nm=(nm+'_').slice(0,31);used.add(nm);
+    XLSX.utils.book_append_sheet(wb,ws,nm);}
+  wb.Workbook={Views:[{RTL:true}]};
+  saveWb(wb,(`Cashier-${rep.file}`).replace(/[\\\/\?\*\[\]:"<>|]/g,'-')+'.xlsx');
+  logAudit({a:`تحميل Excel: ${rep.title} · ${rep.sub}`});
+}
+app.addEventListener('click',e=>{const t=e.target.closest('[data-act="print"],[data-act="xlsx"]');if(!t)return;const rep=reportFor(view);
+  if(t.dataset.act==='print')printReport(rep);else xlsxReport(rep);});
+
 /* ---------- crypto (AES-256-GCM, key wrapped per user with PBKDF2) ---------- */
 let DK=null;                       // data key (CryptoKey), only in memory after login
 const TE=new TextEncoder(), TD=new TextDecoder();
@@ -688,7 +791,31 @@ function fbErr(e){const c=e&&e.code||'';return c==='noacct'?'حسابك يحتا
 async function pack(obj,k=DK){if(!encOn())return obj;if(!k)throw new Error('locked');return encDoc(obj,k);}
 
 /* ---------- users & permissions ---------- */
-function brLabel(){return curBranch==='all'?'كل الفروع':BR[curBranch].name;}
+let periods={closed:{}};
+const pkey=(b,m)=>b+'|'+String(m).slice(0,7);
+function isClosed(b,dm){return !!(periods.closed||{})[pkey(b,dm)];}
+function lockBanner(){if(curBranch==='all'||!isClosed(curBranch,view==='day'?curDate:curMonth))return '';const m=(view==='day'?curDate:curMonth).slice(0,7);const c=periods.closed[pkey(curBranch,m)]||{};
+  return `<div class="ro-banner lockb"><b>فترة ${esc(m)} مقفولة</b> لفرع ${esc(BR[curBranch].name)}${c.by?` · قفلها ${esc(userName(c.by))} ${esc(fmtTime(c.at))}`:''}. ماحدش يقدر يعدّل فيها لحد ما تتفتح من «غلق الفترات».</div>`;}
+function periodMonths(){const ms=new Set();for(const b of userBranches())for(const k of Object.keys(daysBy[b]))ms.add(k.slice(0,7));
+  const d=new Date();ms.add(iso(d).slice(0,7));d.setDate(1);d.setMonth(d.getMonth()-1);ms.add(iso(d).slice(0,7));
+  for(const k of Object.keys(periods.closed||{}))ms.add(k.split('|')[1]);return [...ms].sort().reverse();}
+function renderPeriods(){const bs=userBranches(), ms=periodMonths(), can=canWrite&&has('periods');
+  const cell=(b,m)=>{const c=periods.closed[pkey(b,m)];return `<td class="pc ${c?'is-closed':''}">${c?`<span class="chip lockc">مقفولة</span><div class="note">${esc(userName(c.by))} · ${esc(fmtTime(c.at))}</div>`:'<span class="chip cash">مفتوحة</span>'}
+    ${can?`<button class="btn sm" data-pact="${c?'open':'close'}" data-pb="${b}" data-pm="${m}">${c?'فتح':'قفل'}</button>`:''}</td>`;};
+  return `<div class="bar"><h2>غلق الفترات</h2></div>
+  <section class="panel"><div class="ph"><h2>الشهور والفروع</h2><span class="note">الشهر المقفول ماحدش يقدر يضيف أو يعدّل أو يمسح فيه أي يومية، حتى المالك، لحد ما يتفتح. القفل محمي من قاعدة البيانات نفسها.</span></div>
+  <div class="scroll"><table class="ptable"><thead><tr><th>الشهر</th>${bs.map(b=>`<th class="n">${esc(BR[b].name)}</th>`).join('')}${can&&bs.length>1?'<th class="n">كل الفروع</th>':''}</tr></thead>
+  <tbody>${ms.map(m=>{const all=bs.every(b=>isClosed(b,m));return `<tr><td class="num"><b>${m}</b></td>${bs.map(b=>cell(b,m)).join('')}${can&&bs.length>1?`<td class="pc"><button class="btn sm" data-pall="${all?'open':'close'}" data-pm="${m}">${all?'فتح كل الفروع':'قفل كل الفروع'}</button></td>`:''}</tr>`;}).join('')}</tbody></table></div></section>`;}
+async function setPeriods(pairs,close){if(!has('periods')||!canWrite)return;
+  const nc={...(periods.closed||{})};for(const[b,m]of pairs){const k=pkey(b,m);if(close)nc[k]={by:me,at:new Date().toISOString()};else delete nc[k];}
+  const old=periods.closed;periods={closed:nc};render();
+  try{flushAllAudit();await withTimeout(db.doc('settings/periods').set({closed:nc}),30000);setStatus('تم الحفظ ✓');
+    const ms=[...new Set(pairs.map(p=>p[1]))];logAudit({a:`${close?'قفل':'فتح'} فترة ${ms.join('، ')} · ${[...new Set(pairs.map(p=>BR[p[0]].name))].join(' + ')}`});}
+  catch(e){periods={closed:old};setStatus('تعذّر الحفظ: اتأكد إنك نشرت قواعد الحماية الجديدة');render();}}
+app.addEventListener('click',e=>{const t=e.target.closest('[data-pact],[data-pall]');if(!t)return;
+  if(t.dataset.pact)return setPeriods([[t.dataset.pb,t.dataset.pm]],t.dataset.pact==='close');
+  if(t.dataset.pall)return setPeriods(userBranches().map(b=>[b,t.dataset.pm]),t.dataset.pall==='close');});
+function brLabel(){if(curBranch!=='all')return BR[curBranch].name;return selBr.length===userBranches().length?'كل الفروع':selBr.map(b=>BR[b].name).join(' + ');}
 function U(){return me?users[me]:null;}
 function permOf(u,p){const pm=u.perms||{};if(p==='total'&&pm.total===undefined)return !!pm.month;return !!pm[p];}
 function has(p){const u=U();if(!u)return false;if(u.role==='owner')return true;const pm=u.perms||{};if(p==='total'&&pm.total===undefined)return !!pm.month;return !!pm[p];}
@@ -696,7 +823,7 @@ function userBranches(){const u=U();if(!u)return[];if(u.role==='owner')return Ob
 function canSet(){return canWrite&&has('settings');}
 function yesterday(){const d=new Date();d.setDate(d.getDate()-1);return iso(d);}
 function dayStatus(d){return (d&&d.status)||'open';}
-function canEditDay(){if(!canWrite||!me||curBranch==='all'||!has('day_edit'))return false;if(dayStatus(days[curDate])!=='open')return false;if(has('past'))return true;return curDate>=yesterday()&&curDate<=iso(today);}
+function canEditDay(){if(!canWrite||!me||curBranch==='all'||!has('day_edit'))return false;if(isClosed(curBranch,curDate))return false;if(dayStatus(days[curDate])!=='open')return false;if(has('past'))return true;return curDate>=yesterday()&&curDate<=iso(today);}
 function userName(u){return users[u]?.name||u||'';}
 function fmtTime(t){if(!t)return'';const d=new Date(t);return d.toLocaleDateString('en-GB')+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
 async function hashPw(salt,pw){const b=await crypto.subtle.digest('SHA-256',TE.encode(salt+':'+pw));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
@@ -718,20 +845,25 @@ function checkMe(){if(!me)return;const u=users[me];let s=null;try{s=JSON.parse(s
 let lastAct=Date.now();
 ['click','keydown','input'].forEach(ev=>document.addEventListener(ev,()=>{lastAct=Date.now();try{const s=JSON.parse(sessionStorage.getItem(SKEY)||'null');if(s){s.t=lastAct;sessionStorage.setItem(SKEY,JSON.stringify(s));}}catch(e){}},true));
 setInterval(()=>{if(me&&Date.now()-lastAct>IDLE_MIN*60000){logAudit({a:'خروج تلقائي بعد عدم النشاط'});kick(`تم تسجيل الخروج تلقائياً بعد ${IDLE_MIN} دقيقة بدون نشاط.`);}},30000);
-function pickBranch(){const bs=userBranches();if(!bs.length){curBranch='50';applyBranch();return;}
-  let b=null;try{b=localStorage.getItem('cashier.branch');}catch(e){}
-  curBranch=(b==='all'&&bs.length>1)||bs.includes(b)?b:bs[0];applyBranch();}
-function mergedDays(){const m={};for(const b of Object.keys(BR))for(const[k,d]of Object.entries(daysBy[b])){const x=m[k]||(m[k]={date:k,rows:[],status:'closed',diff:0});x.rows.push(...(d.rows||[]).filter(rowFilled));x.diff+=d.diff||0;}return m;}
-function applyBranch(){days=curBranch==='all'?mergedDays():daysBy[curBranch];}
+function setBranches(list){const ok=userBranches();list=[...new Set(list)].filter(b=>ok.includes(b));if(!list.length)list=[ok[0]||'50'];
+  list.sort((a,b)=>Object.keys(BR).indexOf(a)-Object.keys(BR).indexOf(b));
+  selBr=list;curBranch=list.length===1?list[0]:'all';try{localStorage.setItem('cashier.branches',JSON.stringify(list));}catch(_){}applyBranch();}
+function pickBranch(){let l=null;try{l=JSON.parse(localStorage.getItem('cashier.branches')||'null');}catch(e){}
+  setBranches(Array.isArray(l)&&l.length?l:[userBranches()[0]]);}
+function mergedDays(list){const m={};for(const b of (list||selBr))for(const[k,d]of Object.entries(daysBy[b])){const x=m[k]||(m[k]={date:k,rows:[],status:'closed',diff:0});x.rows.push(...(d.rows||[]).filter(rowFilled));x.diff+=d.diff||0;}return m;}
+function applyBranch(){days=curBranch==='all'?mergedDays(selBr):daysBy[curBranch];}
 function renderBranchPick(){const el=$('#bpick');const bs=userBranches();
-  el.innerHTML=bs.map(b=>`<option value="${b}"${b===curBranch?' selected':''}>${esc(BR[b].name)}</option>`).join('')+(bs.length>1?`<option value="all"${curBranch==='all'?' selected':''}>كل الفروع</option>`:'');
+  $('#bsum').textContent=brLabel();
+  $('#blist').innerHTML=(bs.length>1?`<div class="mbtns"><button class="btn" type="button" data-ball="1">كل الفروع</button></div>`:'')+
+    bs.map(b=>`<label class="ck"><input type="checkbox" id="bs-${b}" data-bsel="${b}"${selBr.includes(b)?' checked':''}> ${esc(BR[b].name)}</label>`).join('');
   el.hidden=bs.length<1;}
-$('#bpick').addEventListener('change',e=>{flushAllAudit();curBranch=e.target.value;try{localStorage.setItem('cashier.branch',curBranch);}catch(_){}applyBranch();render();});
+$('#blist').addEventListener('change',e=>{const b=e.target.dataset.bsel;if(!b)return;const set=new Set(selBr);e.target.checked?set.add(b):set.delete(b);if(!set.size){e.target.checked=true;return;}flushAllAudit();setBranches([...set]);render();});
+$('#blist').addEventListener('click',e=>{if(e.target.closest('[data-ball]')){flushAllAudit();setBranches(userBranches());render();}});
 $('#signout').addEventListener('click',()=>{logAudit({a:'تسجيل خروج'});kick('تم تسجيل الخروج.');});
 
 /* ---------- raw store (encrypted at rest) & decryption ---------- */
 const raw={set:null,days:{}};for(const b in BR)raw.days[b]={};
-function wipePlain(){for(const b in BR){for(const k in daysBy[b])delete daysBy[b][k];}settings={cats:[],map:{}};auditRows={};applyBranch();}
+function wipePlain(){periods={closed:{}};for(const b in BR){for(const k in daysBy[b])delete daysBy[b][k];}settings={cats:[],map:{}};auditRows={};applyBranch();}
 async function ingestSettings(){const v=await decDoc(raw.set);if(v&&!setDirty){settings={cats:[...(v.cats||[])],map:{...(v.map||{})}};buildNmap();}}
 async function ingestDay(b,id){const key=b+'|'+id;if(dirty[key]||aTimers[key])return;const r=raw.days[b][id];
   if(!r){delete daysBy[b][id];delete lastSaved[key];return;}
@@ -977,21 +1109,25 @@ function encStatus(){
    <div class="adds" style="border-top:1px solid var(--line)"><span class="note">مفتاح فك التشفير مش محفوظ في أي مكان بشكل مقروء. بيتفتح في الذاكرة بس لما مستخدم يدخل بكلمة السر، وبيتمسح أول ما يخرج. لو كل المستخدمين نسيوا كلمات السر، البيانات والنسخ الاحتياطية مش هتتفتح.</span></div></section>`;
 }
 function imMsg(st){let rev=0,ex=0,nd=0,old=0;
-  for(const[dt,rows]of Object.entries(st.days)){if(dt.slice(0,7)!==st.month)continue;const t=dayTot({rows});rev+=t.rev;ex+=t.expAll;if(rows.length)nd++;}
-  for(const dt of monthDays(st.month))if(daysBy[st.br][dt]&&(daysBy[st.br][dt].rows||[]).some(rowFilled))old++;
-  return `الملف <b>${esc(st.file)}</b>: شهر <b>${esc(st.month)}</b>، فيه ${nd} يوم بحركة · إجمالي الإيرادات <b class="num">${fmt(rev)}</b> · إجمالي المصروفات <b class="num">${fmt(ex)}</b>.<br>`+
-    (old?`<span style="color:var(--exp)">فرع ${esc(BR[st.br].name)} فيه ${old} يوم مسجّل في الشهر ده، وهيتمسحوا ويتحط مكانهم بيانات الملف.</span>`:`فرع ${esc(BR[st.br].name)} مافيهوش بيانات في الشهر ده.`);}
+  for(const[dt,rows]of Object.entries(st.days)){const t=dayTot({rows});rev+=t.rev;ex+=t.expAll;if(rows.length)nd++;}
+  for(const m of st.months)for(const dt of monthDays(m))if(daysBy[st.br][dt]&&(daysBy[st.br][dt].rows||[]).some(rowFilled))old++;
+  const closedMs=st.months.filter(m=>isClosed(st.br,m));
+  return `الملف <b>${esc(st.file)}</b>: ${st.months.length>1?'الشهور':'شهر'} <b>${esc(st.months.join('، '))}</b>، فيه ${nd} يوم بحركة · إجمالي الإيرادات <b class="num">${fmt(rev)}</b> · إجمالي المصروفات <b class="num">${fmt(ex)}</b>.<br>`+
+    (st.bad?`<span style="color:var(--exp)">${st.bad} صف من غير تاريخ صحيح، ومش هيتستوردوا.</span><br>`:'')+
+    (closedMs.length?`<span style="color:var(--exp)"><b>مايتعملش استيراد:</b> فترة ${esc(closedMs.join('، '))} مقفولة لفرع ${esc(BR[st.br].name)}. افتحها الأول من «غلق الفترات».</span>`:
+    old?`<span style="color:var(--exp)">فرع ${esc(BR[st.br].name)} فيه ${old} يوم مسجّل في ${st.months.length>1?'الشهور دي':'الشهر ده'}، وهيتمسحوا ويتحط مكانهم بيانات الملف.</span>`:`فرع ${esc(BR[st.br].name)} مافيهوش بيانات في ${st.months.length>1?'الشهور دي':'الشهر ده'}.`);}
 function renderBackup(){
   return `<div class="bar"><h2>النسخ الاحتياطي والتشفير</h2></div>`+encStatus()+`
   <section class="panel"><div class="ph"><h2>تحميل نسخة احتياطية</h2></div>
    <div class="adds" style="border:0"><p class="note" style="margin:0;flex-basis:100%">النسخة فيها كل اليوميات لكل الفروع والتصنيفات والمستخدمين وسجل التعديلات، وهي مشفّرة زي ما هي في السيستم. ماتتفتحش غير بكلمة سر مستخدم من السيستم.</p>
    ${dl?'<button class="btn pri" data-act="backup">تحميل نسخة احتياطية الآن</button>':'<span class="note">التحميل غير متاح في هذا العرض.</span>'}</div></section>
   <section class="panel"><div class="ph"><h2>نسخة يومية</h2></div><div class="adds" style="border:0"><p class="note" style="margin:0">حمّل نسخة من الزرار اللي فوق في آخر كل يوم واحفظها على Google Drive. ممكن كمان تفعّل Scheduled backups لقاعدة البيانات من Firebase Console (محتاجة خطة Blaze).</p></div></section>
-  ${U().role==='owner'&&canWrite?`<section class="panel"><div class="ph"><h2>استيراد يومية شهر من Excel</h2><span class="note">للمالك فقط · ملف فيه شيت لكل يوم (1، 2، 3 …) بنفس شكل اليومية</span></div>
+  ${U().role==='owner'&&canWrite?`<section class="panel"><div class="ph"><h2>استيراد يومية من Excel</h2><span class="note">للمالك فقط</span><span class="grow"></span><button class="btn" data-act="imtpl">⬇ تحميل نموذج الاستيراد (Form)</button></div>
+   <div class="adds" style="border:0;padding-bottom:0"><p class="note" style="margin:0">املا النموذج: كل صف بتاريخه وأعمدة الإيرادات والمصروفات زي اليومية، وممكن يكون فيه أكتر من شهر. الملفات القديمة اللي فيها شيت لكل يوم شغالة برضه.</p></div>
    <div class="adds" style="border:0;flex-direction:column;align-items:stretch">
-   <label class="ck">الفرع <select id="im-br">${Object.entries(BR).map(([b,x])=>`<option value="${b}"${b===(imState&&imState.br||(curBranch==='all'?'50':curBranch))?' selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+   <label class="ck">الفرع <select id="im-br">${Object.entries(BR).map(([b,x])=>`<option value="${b}"${b===(imBr||imState&&imState.br||(curBranch==='all'?selBr[0]:curBranch))?' selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
    <input type="file" id="im-file" accept=".xlsx,.xlsm,.xls">
-   ${imState?`<div class="ro-banner">${imState.msg}</div>${imState.ready?`<div class="bar"><button class="btn danger" data-act="doimport">تأكيد: استبدال شهر ${esc(imState.month)} في فرع ${esc(BR[imState.br].name)}</button><button class="btn" data-act="cancelimport">إلغاء</button></div>`:''}`:''}
+   ${imState?`<div class="ro-banner">${imState.msg}</div>${imState.ready&&!imState.months.some(m=>isClosed(imState.br,m))?`<div class="bar"><button class="btn danger" data-act="doimport">تأكيد: استبدال ${esc(imState.months.join('، '))} في فرع ${esc(BR[imState.br].name)}</button><button class="btn" data-act="cancelimport">إلغاء</button></div>`:''}`:''}
    </div></section>`:''}
   ${U().role==='owner'?`<section class="panel"><div class="ph"><h2>استرجاع من نسخة احتياطية</h2><span class="note">للمالك فقط</span></div>
    <div class="adds" style="border:0;flex-direction:column;align-items:stretch">
@@ -1000,34 +1136,73 @@ function renderBackup(){
    </div></section>`:''}`;
 }
 /* ---------- استيراد يومية من Excel ---------- */
-let imState=null;
+let imState=null, imBr=null;
+const HN=s=>String(s??'').trim().replace(/[ىي]/g,'ي').replace(/[ةه]\b/g,'ه').replace(/\s+/g,' ');
+const FLAT_COLS={'كاش':'cash','فيزا':'visa','طلبات كاش':'tcash','طلبات فيزا':'tvisa','تمويل':'fin','مصروفات':'exp','مصروف':'exp','مصروف خارجي':'ext','مصروف من البنك':'bank','من البنك':'bank','السلف':'adv','سلف':'adv','التوجيه':'cat','الوصف':'desc'};
+function cellDate(v){
+  if(v==null||v==='')return null;
+  if(typeof v==='number'&&v>20000&&v<80000){const d=XLSX.SSF.parse_date_code(v);if(d&&d.y)return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
+  if(v instanceof Date&&!isNaN(v))return iso(v);
+  const m=String(v).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  const m2=String(v).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m2)return `${m2[1]}-${m2[2].padStart(2,'0')}-${m2[3].padStart(2,'0')}`;
+  return null;}
 function parseCashierXlsx(buf){
   if(!window.XLSX)throw new Error('مكتبة قراءة Excel ماتحمّلتش. اتأكد من الإنترنت وجرب تاني.');
   const wb=XLSX.read(buf,{type:'array'});
-  const out={};let month=null;
-  const val=(ws,a)=>{const c=ws[a];return c?c.v:undefined;};
-  const dateOf=(ws,name)=>{const c=ws['M1'];
-    if(c&&c.t==='n'){const d=XLSX.SSF.parse_date_code(c.v);if(d&&d.y)return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
-    if(c&&c.t==='d'){const d=c.v;return iso(d);}
-    if(c&&c.t==='s'){const m=String(c.v).match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;}
-    return null;};
-  const cols={B:'cash',C:'visa',D:'tcash',E:'tvisa',F:'fin',I:'exp',J:'ext',K:'adv'};
-  for(const name of wb.SheetNames){const ws=wb.Sheets[name];const dt=dateOf(ws,name);if(!dt)continue;
-    month=month||dt.slice(0,7);
-    const rows=[];
-    for(let r=5;r<=30;r++){const row=blankRow();
-      for(const[c,k]of Object.entries(cols)){const v=val(ws,c+r);if(typeof v==='number'&&v)row[k]=Math.round(v*100)/100;}
-      const d=val(ws,'M'+r);if(d!=null&&String(d).trim())row.desc=String(d).trim();
-      const l=val(ws,'L'+r);if(l!=null&&settings.cats.includes(String(l).trim()))row.cat=String(l).trim();
-      rows.push(row);}
-    out[dt]=trimRows(rows);}
-  return {days:out,month};
+  const out={};let bad=0;
+  const add=(dt,row)=>{(out[dt]=out[dt]||[]).push(row);};
+  // 1) الشكل الجديد: جدول واحد، كل صف بتاريخه (زي نموذج الاستيراد)
+  for(const name of wb.SheetNames){const aoa=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:null});
+    let hr=-1,map=null;
+    for(let r=0;r<Math.min(6,aoa.length);r++){const hs=(aoa[r]||[]).map(HN);if(hs.includes('كاش')&&hs.includes('الوصف')&&hs.some(h=>h==='التاريخ'||h==='الشهر'||h==='اليوم')){hr=r;map={};hs.forEach((h,i)=>{const k=FLAT_COLS[h]||(h.startsWith('مصروف خارج')?'ext':h.startsWith('التوجي')?'cat':null);if(k&&!(k in map))map[k]=i;if(h==='التاريخ'||h==='الشهر'||h==='اليوم')map.date=i;});break;}}
+    if(hr<0)continue; if(map.date==null)map.date=0;
+    for(let r=hr+1;r<aoa.length;r++){const a=aoa[r]||[];const row=blankRow();
+      for(const k of [...REV,...EXPK]){const i=map[k];const v=i==null?null:a[i];if(typeof v==='number'&&v)row[k]=Math.round(v*100)/100;else if(typeof v==='string'&&num(v))row[k]=num(v);}
+      if(map.desc!=null&&a[map.desc]!=null&&String(a[map.desc]).trim())row.desc=String(a[map.desc]).trim();
+      if(map.cat!=null&&a[map.cat]!=null){const c=String(a[map.cat]).trim();if(settings.cats.includes(c))row.cat=c;}
+      if(!rowFilled(row))continue;
+      const dt=cellDate(a[map.date]);if(!dt){bad++;continue;}add(dt,row);}
+  }
+  // 2) الشكل القديم: شيت لكل يوم والتاريخ في M1
+  if(!Object.keys(out).length){bad=0;
+    const cols={B:'cash',C:'visa',D:'tcash',E:'tvisa',F:'fin',I:'exp',J:'ext',K:'adv'};
+    for(const name of wb.SheetNames){const ws=wb.Sheets[name];const c=ws['M1'];const dt=c?cellDate(c.v):null;if(!dt)continue;
+      out[dt]=out[dt]||[];
+      for(let r=5;r<=30;r++){const row=blankRow();
+        for(const[cl,k]of Object.entries(cols)){const v=ws[cl+r]?.v;if(typeof v==='number'&&v)row[k]=Math.round(v*100)/100;}
+        const d=ws['M'+r]?.v;if(d!=null&&String(d).trim())row.desc=String(d).trim();
+        const l=ws['L'+r]?.v;if(l!=null&&settings.cats.includes(String(l).trim()))row.cat=String(l).trim();
+        out[dt].push(row);}
+      out[dt]=trimRows(out[dt]);}
+  }
+  for(const k of Object.keys(out))out[k]=trimRows(out[k]);
+  const months=[...new Set(Object.keys(out).map(k=>k.slice(0,7)))].sort();
+  return {days:out,months,bad};
+}
+function saveWb(wb,name){const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const url=URL.createObjectURL(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);}
+function downloadTemplate(){
+  if(!window.XLSX){setStatus('مكتبة Excel ماتحمّلتش، جرب تاني');return;}
+  const H=['التاريخ','الإجمالي',...REV.map(k=>LBL[k]),'الإجمالي',...EXPK.map(k=>LBL[k]),'التوجيه','الوصف'];
+  const aoa=[['الإيرادات','','','','','','','المصروف'],H];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  for(let r=3;r<=302;r++){ws['B'+r]={t:'n',f:`IF(SUM(C${r}:G${r})=0,"",SUM(C${r}:G${r}))`};ws['H'+r]={t:'n',f:`IF(SUM(I${r}:L${r})=0,"",SUM(I${r}:L${r}))`};}
+  ws['!ref']='A1:N302';ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:0,c:7},e:{r:0,c:13}}];
+  ws['!cols']=[{wch:13},{wch:12},{wch:11},{wch:11},{wch:12},{wch:12},{wch:10},{wch:12},{wch:11},{wch:13},{wch:15},{wch:10},{wch:18},{wch:30}];
+  const help=XLSX.utils.aoa_to_sheet([['طريقة الاستخدام'],['• كل صف = بند واحد. اكتب تاريخ اليوم في عمود التاريخ بالشكل 01/11/2026'],['• ممكن تكتب أكتر من صف لنفس اليوم (زي اليومية بالظبط)'],['• عمودين الإجمالي بيتحسبوا لوحدهم، ماتكتبش فيهم'],['• التوجيه: اختار اسم من قائمة التصنيفات اللي تحت، أو سيبه فاضي ويتحدد من الوصف'],['• الملف ممكن يكون فيه أكتر من شهر'],[],['التصنيفات (التوجيه)'],...settings.cats.map(c=>[c])]);
+  help['!cols']=[{wch:70}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'اليومية');XLSX.utils.book_append_sheet(wb,help,'تعليمات');
+  wb.Workbook={Views:[{RTL:true}]};
+  saveWb(wb,'Cashier-Import-Form.xlsx');
 }
 async function doImport(){
   const st=imState;if(!st||!st.ready||U().role!=='owner')return;
+  if(st.months.some(m=>isClosed(st.br,m))){imState={...st,msg:imMsg(st)};return render();}
   const br=st.br, coll=BR[br].coll, store=daysBy[br];
   imState={...st,ready:false,msg:'جارٍ الاستيراد…'};render();
-  const dates=monthDays(st.month);let n=0;
+  const dates=st.months.flatMap(monthDays);let n=0;
   try{
     for(const dt of dates){const rows=st.days[dt]||[];const key=br+'|'+dt;
       clearTimeout(timers[key]);delete dirty[key];
@@ -1036,10 +1211,10 @@ async function doImport(){
       else{const o={date:dt,rows,by:me,at:new Date().toISOString(),imported:true};
         await withTimeout(ref.set(await pack(o)),30000);store[dt]={...o};lastSaved[key]=JSON.stringify(store[dt]);}
       n++;imState={...st,ready:false,msg:`جارٍ الاستيراد… ${n}/${dates.length}`};const b=document.querySelector('.ro-banner');if(b)b.textContent=imState.msg;}
-    logAudit({br,a:`استيراد يومية شهر ${st.month} من Excel (${st.file})`});
+    logAudit({br,a:`استيراد يومية ${st.months.join('، ')} من Excel (${st.file})`});
     applyBranch();imState=null;
-    if(userBranches().includes(br)){curBranch=br;try{localStorage.setItem('cashier.branch',br);}catch(_){}applyBranch();}
-    curMonth=st.month;selMonths=null;view='total';render();setStatus('تم الاستيراد ✓');
+    if(userBranches().includes(br))setBranches([br]);
+    curMonth=st.months[0];selMonths=null;view='total';render();setStatus('تم الاستيراد ✓');
   }catch(e){imState={...st,ready:false,msg:'تعذّر الاستيراد: '+esc(e.code==='timeout'?'قاعدة البيانات مش بترد':(e.message||''))+`. اتعمل ${n} يوم من ${dates.length}، جرّب تاني.`};render();}
 }
 async function doBackup(){setStatus('جارٍ تجهيز النسخة…');
@@ -1049,11 +1224,11 @@ async function doBackup(){setStatus('جارٍ تجهيز النسخة…');
 app.addEventListener('change',async e=>{
   if(e.target.id==='af-u'){auditFilter.u=e.target.value;return render();}
   if(e.target.id==='af-d'){auditFilter.d=e.target.value;return render();}
-  if(e.target.id==='im-br'){if(imState)imState={...imState,br:e.target.value,msg:imState.msg};else imState=null;if(imState&&imState.ready){imState.msg=imMsg(imState);}render();return;}
+  if(e.target.id==='im-br'){imBr=e.target.value;if(imState)imState={...imState,br:e.target.value,msg:imState.msg};else imState=null;if(imState&&imState.ready){imState.msg=imMsg(imState);}render();return;}
   if(e.target.id==='im-file'){const f=e.target.files[0];if(!f)return;const br=$('#im-br').value;
     try{const r=parseCashierXlsx(new Uint8Array(await f.arrayBuffer()));
-      if(!r.month)throw new Error('مالقيتش تاريخ في الخلية M1 في أي شيت.');
-      imState={ready:true,br,month:r.month,days:r.days,file:f.name};imState.msg=imMsg(imState);}
+      if(!r.months.length)throw new Error('مالقيتش بيانات بتواريخ في الملف. استخدم نموذج الاستيراد واكتب التاريخ في أول عمود.');
+      imState={ready:true,br,months:r.months,days:r.days,bad:r.bad,file:f.name};imState.msg=imMsg(imState);}
     catch(err){imState={ready:false,br,msg:esc(err.message||'الملف ده مش يومية Cashier.')};}
     render();return;}
   if(e.target.id!=='rs-file')return;const f=e.target.files[0];if(!f)return;
@@ -1072,12 +1247,14 @@ async function doRestore(){const j=restoreState&&restoreState.data;if(!j)return;
     restoreState=null;kick('تم الاسترجاع. سجّل الدخول من جديد.');}
   catch(e){restoreState={ready:false,msg:'تعذّر الاسترجاع: '+(e&&e.message||'')};render();}}
 app.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act;
+  if(a==='imtpl')downloadTemplate();
   if(a==='doimport')doImport(); if(a==='cancelimport'){imState=null;render();}
   if(a==='backup')doBackup(); if(a==='encnow'&&DK&&U()?.role==='owner'){migrateEncrypt().then(()=>{logAudit({a:'تشفير السجلات المتبقية'});render();});} if(a==='dorestore')doRestore(); if(a==='cancelrestore'){restoreState=null;render();}
   if(a==='closeday'||a==='reviewday'||a==='reopenday')dayAction(a);});
 
 /* ---------- day closing / review ---------- */
 async function dayAction(a){
+  if(curBranch==='all'||isClosed(curBranch,curDate))return;
   const d=ensureDay(curDate); const key=curBranch+'|'+curDate; const t=dayTot(d);
   if(a==='closeday'){if(!canEditDay())return;
     const cnt=$('#cc-cash'); const v=cnt&&cnt.value.trim(); const er=$('#cc-err');
@@ -1099,6 +1276,7 @@ let unsubs=[];
 function stopData(){for(const u of unsubs){try{u();}catch(e){}}unsubs=[];for(const b in BR)raw.days[b]={};raw.set=null;for(const k in rawAudit)delete rawAudit[k];}
 const refresh=()=>{if(ready&&!isTyping())render();};
 function startData(){stopData();
+  unsubs.push(db.doc('settings/periods').onSnapshot(s=>{const v=s.exists?s.data():null;periods={closed:{...((v&&v.closed)||{})}};refresh();},()=>{}));
   unsubs.push(db.doc('settings/main').onSnapshot(async s=>{raw.set=s.exists?s.data():null;if(me)await ingestSettings();refresh();},e=>setStatus('تعذّر قراءة التصنيفات')));
   if(has('audit'))unsubs.push(db.collection('audit').orderBy('day','desc').limit(400).onSnapshot(async s=>{for(const ch of s.docChanges()){const id=ch.doc.id;if(ch.type==='removed'){delete rawAudit[id];delete auditRows[id];}else{rawAudit[id]=ch.doc.data();if(me)await ingestAudit(id);}}if(view==='audit')refresh();},()=>{}));
   for(const b of userBranches()){
@@ -1120,7 +1298,7 @@ render();
   let first=true;
   db.doc('settings/users').onSnapshot(async s=>{if(!usersSaving){const v=s.exists?JSON.parse(JSON.stringify(s.data())):{};users=v.users||{};delete v.users;usersDoc=v;}
     if(first){first=false;if(await restoreSession()){startData();await decryptAll();pickBranch();}ready=true;render();return;}
-    checkMe();if(me&&!userBranches().includes(curBranch)&&curBranch!=='all')pickBranch();refresh();
+    checkMe();if(me&&selBr.some(b=>!userBranches().includes(b)))pickBranch();refresh();
   },e=>{ready=true;app.hidden=false;app.innerHTML='<div class="empty">تعذّر الاتصال بـ Firebase: '+esc(e.code||e.message)+'. تأكد إنك عملت Firestore Database ولصقت قواعد الحماية ودوست Publish.</div>';});
 })();
 /* ---------- install as app ---------- */
