@@ -139,9 +139,9 @@ table.xl thead th{background:var(--sunk);padding:6px 8px;font-size:12.5px;color:
 table.xl td.gap,table.xl th.gap{width:10px;min-width:10px;background:var(--bg);border-top:0;border-bottom:0}
 table.xl td.tot{background:color-mix(in srgb,var(--accent-soft) 55%,transparent);font-family:var(--f-num);font-weight:600;color:var(--accent);padding:0 8px;min-width:6em}
 table.xl input{border:0;border-radius:0;background:transparent;width:100%;height:31px;padding:0 8px}
-table.xl input.n{width:5.9em;text-align:end;font-family:var(--f-num)}
-table.xl td.descc{min-width:12em}
-table.xl td.descc input{min-width:12em}
+table.xl input.n{width:5.5em;text-align:end;font-family:var(--f-num)}
+table.xl td.descc{min-width:11em}
+table.xl td.descc input{min-width:11em}
 table.xl td.catc{min-width:8.5em;padding:0 4px}
 table.xl td.catc select{border:0;background:transparent;width:100%;max-width:11em}
 table.xl td.catc select.auto{color:var(--muted)}
@@ -255,10 +255,10 @@ const $=s=>document.querySelector(s);
 const app=$('#app'), statusEl=$('#status');
 const ADV_CAT='السلف';
 /* اليومية بشكل الإكسيل: كل صف فيه أعمدة الإيرادات وأعمدة المصروفات */
-const REV=['cash','visa','tcash','tvisa','fin'], EXPK=['exp','ext','adv'];
-const LBL={cash:'كاش',visa:'فيزا',tcash:'طلبات كاش',tvisa:'طلبات فيزا',fin:'تمويل',exp:'مصروفات',ext:'مصروف خارجي',adv:'السلف'};
+const REV=['cash','visa','tcash','tvisa','fin'], EXPK=['exp','ext','bank','adv'];
+const LBL={cash:'كاش',visa:'فيزا',tcash:'طلبات كاش',tvisa:'طلبات فيزا',fin:'تمويل',exp:'مصروفات',ext:'مصروف خارجي',bank:'مصروف من البنك',adv:'السلف'};
 const GRID_ROWS=26;
-const blankRow=()=>({cash:'',visa:'',tcash:'',tvisa:'',fin:'',exp:'',ext:'',adv:'',cat:'',desc:''});
+const blankRow=()=>({cash:'',visa:'',tcash:'',tvisa:'',fin:'',exp:'',ext:'',bank:'',adv:'',cat:'',desc:''});
 const revSum=r=>REV.reduce((s,k)=>s+num(r[k]),0);
 const expSum=r=>EXPK.reduce((s,k)=>s+num(r[k]),0);
 const rowFilled=r=>!!r&&(revSum(r)!==0||expSum(r)!==0||String(r.desc||'').trim()!==''||!!r.cat);
@@ -275,8 +275,8 @@ const trimRows=rows=>{const r=rows.slice();while(r.length&&!rowFilled(r[r.length
 function rowTxt(r){const parts=[...REV,...EXPK].filter(k=>num(r[k])).map(k=>LBL[k]+' '+fmt(r[k]));return (parts.join(' + ')||'صف فاضي')+(r.desc?' ('+r.desc+')':'');}
 const DAYNAMES=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let db=null, dl=null, canWrite=true, ready=false;
-const BR={'50':{name:'RAJ 50',coll:'days'},'kaf':{name:'الكفراوي',coll:'days_kaf'}};
-let daysBy={'50':{},'kaf':{}}, curBranch='50';
+const BR={'50':{name:'RAJ 50',coll:'days'},'kaf':{name:'الكفراوي',coll:'days_kaf'},'bun':{name:'Bunwich',coll:'days_bun'}};
+let daysBy=Object.fromEntries(Object.keys(BR).map(b=>[b,{}])), curBranch='50';
 let days=daysBy['50'];            // date -> {date,rev,exp,ext}
 let users={}, me=null, usersLoaded=false, cuser=null, isClaudeOwner=false;
 const ROLES={owner:'المالك',admin:'مدير',cashier:'كاشير'};
@@ -301,15 +301,15 @@ const norm=s=>String(s||'').trim()
 let nmap={};
 function buildNmap(){nmap={};for(const[k,v]of Object.entries(settings.map||{}))nmap[norm(k)]=v;}
 function autoCat(desc){ if(!desc) return ''; return (settings.map||{})[desc.trim()]||nmap[norm(desc)]||''; }
-function lineCat(r){ if(!num(r.exp)&&!num(r.ext)&&num(r.adv)) return ADV_CAT; return r.cat||autoCat(r.desc)||''; }
+function lineCat(r){ if(!num(r.exp)&&!num(r.ext)&&!num(r.bank)&&num(r.adv)) return ADV_CAT; return r.cat||autoCat(r.desc)||''; }
 
 /* ---------- totals ---------- */
 function dayTot(d){
-  const t={cash:0,visa:0,tcash:0,tvisa:0,fin:0,rev:0,exp:0,ext:0,adv:0,expAll:0,talabat:0,net:0};
+  const t={cash:0,visa:0,tcash:0,tvisa:0,fin:0,rev:0,exp:0,ext:0,bank:0,adv:0,expAll:0,talabat:0,net:0};
   if(!d) return t;
   for(const r of d.rows||[]){for(const k of [...REV,...EXPK])t[k]+=num(r[k]);}
   t.rev=t.cash+t.visa+t.tcash+t.tvisa+t.fin; t.talabat=t.tcash+t.tvisa;
-  t.expAll=t.exp+t.ext+t.adv;
+  t.expAll=t.exp+t.ext+t.bank+t.adv;
   t.net=t.cash+t.tcash+t.fin-t.exp-t.adv;   // النقدية المتوقعة في الدرج
   return t;
 }
@@ -392,7 +392,7 @@ function renderDay(){
   const rows=d.rows||[]; const n=Math.max(GRID_ROWS,rows.length+(ce?3:0));
   const cell=(i,k,r)=>`<td class="n"><input class="n" id="g-${k}-${i}" inputmode="decimal" aria-label="${LBL[k]} صف ${i+1}" data-g="${i}" data-f="${k}" value="${r&&r[k]!==''&&r[k]!=null?esc(r[k]):''}"${ce?'':' disabled'}></td>`;
   const body=Array.from({length:n},(_,i)=>{const r=rows[i];const rs=r?revSum(r):0, es=r?expSum(r):0;
-    const onlyAdv=r&&!num(r.exp)&&!num(r.ext)&&num(r.adv); const ac=r?autoCat(r.desc):'';
+    const onlyAdv=r&&!num(r.exp)&&!num(r.ext)&&!num(r.bank)&&num(r.adv); const ac=r?autoCat(r.desc):'';
     return `<tr>
       <td class="n tot" id="g-rt-${i}">${rs?fmt(rs):''}</td>${REV.map(k=>cell(i,k,r)).join('')}
       <td class="gap"></td>
@@ -407,12 +407,12 @@ function renderDay(){
     <button class="btn" data-act="today">اليوم</button>
     <div class="daylabel">${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}<span>${DAYNAMES[dt.getDay()]}</span></div>
     <span class="grow"></span>${d.by?`<span class="note">آخر تعديل: ${esc(userName(d.by))} · ${esc(fmtTime(d.at))}</span>`:''}
-  </div>${!ce&&curBranch!=='all'&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض الفرعين معاً للعرض فقط. اختر فرعاً من أعلى للإدخال.</div>':''}
+  </div>${!ce&&curBranch!=='all'&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض كل الفروع للعرض فقط. اختر فرعاً من أعلى للإدخال.</div>':''}
   <div class="kpis" id="daykpis">${dayKpis(t)}</div>
   ${curBranch!=='all'?closeBox(d,t):''}
   <section class="panel sheet"><div class="scroll"><table class="xl">
     <thead>
-      <tr class="grp"><th colspan="6">أولاً : الإيرادات</th><th class="gap"></th><th colspan="6">ثانياً : المصروفات</th></tr>
+      <tr class="grp"><th colspan="6">أولاً : الإيرادات</th><th class="gap"></th><th colspan="7">ثانياً : المصروفات</th></tr>
       <tr><th class="n">الإجمالي</th>${REV.map(k=>`<th class="n">${LBL[k]}</th>`).join('')}<th class="gap"></th><th class="n">الإجمالي</th>${EXPK.map(k=>`<th class="n">${LBL[k]}</th>`).join('')}<th>التوجيه</th><th>الوصف</th></tr>
     </thead>
     <tbody>${body}</tbody>
@@ -420,7 +420,7 @@ function renderDay(){
   </table></div>
   ${ce?`<div class="adds"><button class="btn" data-act="addrows">+ 5 صفوف</button><span class="note">Enter ينقلك للصف اللي تحته. التوجيه بيتحدد تلقائياً من الوصف لو مربوط في التصنيفات.</span></div>`:''}
   </section>
-  <p class="note">صافي الكاش في الدرج = كاش + طلبات كاش + تمويل − مصروفات − سلف. المصروف الخارجي بيظهر في إجمالي المصروفات ومش بيتخصم من الدرج.</p>
+  <p class="note">صافي الكاش في الدرج = كاش + طلبات كاش + تمويل − مصروفات − سلف. المصروف الخارجي والمصروف من البنك بيظهروا في إجمالي المصروفات ومش بيتخصموا من الدرج.</p>
   <datalist id="descs">${[...new Set([...Object.keys(settings.map),...Object.values(days).flatMap(x=>(x.rows||[]).map(e=>e.desc))].filter(Boolean))].slice(0,600).map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`;
 }
 function dayKpis(t){return `${kpi('إجمالي الإيرادات',t.rev)}${kpi('كاش',t.cash,'cash')}${kpi('فيزا',t.visa,'visa')}${kpi('طلبات',t.talabat,'talabat')}${kpi('تمويل',t.fin)}${kpi('إجمالي المصروفات',t.expAll,'exp')}${kpi('السلف',t.adv,'adv')}${kpi('صافي الكاش في الدرج',t.net,'',true)}`;}
@@ -430,7 +430,7 @@ function footCells(t){return `<td class="n">${fmt(t.rev)}</td>${REV.map(k=>`<td 
 function renderTotal(){
   const list=monthDays(curMonth).map(dt=>[dt,dayTot(days[dt])]);
   const T=dayTot(null);for(const[,t]of list)for(const k in T)T[k]+=t[k];
-  const cols=[['rev','إجمالي الإيرادات'],['cash','كاش'],['visa','فيزا'],['tcash','طلبات كاش'],['tvisa','طلبات فيزا'],['fin','تمويل'],['expAll','إجمالي المصروفات'],['exp','مصروفات'],['ext','مصروف خارجي'],['adv','السلف'],['net','صافي الكاش']];
+  const cols=[['rev','إجمالي الإيرادات'],['cash','كاش'],['visa','فيزا'],['tcash','طلبات كاش'],['tvisa','طلبات فيزا'],['fin','تمويل'],['expAll','إجمالي المصروفات'],['exp','مصروفات'],['ext','مصروف خارجي'],['bank','مصروف من البنك'],['adv','السلف'],['net','صافي الكاش']];
   return `<div class="bar"><h2>إجمالي الشهر · ${esc(brLabel())}</h2><select id="mpick" aria-label="الشهر">${monthOptions()}</select><span class="grow"></span>${dl?'<button class="btn" data-act="totcsv">تصدير Excel</button>':''}</div>
   <div class="kpis">${kpi('إجمالي الإيرادات',T.rev)}${kpi('كاش',T.cash,'cash')}${kpi('فيزا',T.visa,'visa')}${kpi('طلبات',T.talabat,'talabat')}${kpi('تمويل',T.fin)}${kpi('إجمالي المصروفات',T.expAll,'exp')}${kpi('السلف',T.adv,'adv')}${kpi('صافي الكاش',T.net,'',true)}</div>
   <section class="panel"><div class="scroll"><table class="xl tot">
@@ -442,7 +442,7 @@ function renderTotal(){
 }
 async function exportTotal(){
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const cols=[['rev','إجمالي الإيرادات'],['cash','كاش'],['visa','فيزا'],['tcash','طلبات كاش'],['tvisa','طلبات فيزا'],['fin','تمويل'],['expAll','إجمالي المصروفات'],['exp','مصروفات'],['ext','مصروف خارجي'],['adv','السلف'],['net','صافي الكاش']];
+  const cols=[['rev','إجمالي الإيرادات'],['cash','كاش'],['visa','فيزا'],['tcash','طلبات كاش'],['tvisa','طلبات فيزا'],['fin','تمويل'],['expAll','إجمالي المصروفات'],['exp','مصروفات'],['ext','مصروف خارجي'],['bank','مصروف من البنك'],['adv','السلف'],['net','صافي الكاش']];
   const rows=[['التاريخ',...cols.map(c=>c[1])]];const T=dayTot(null);
   for(const dt of monthDays(curMonth)){const t=dayTot(days[dt]);for(const k in T)T[k]+=t[k];rows.push([dt,...cols.map(([k])=>t[k]||0)]);}
   rows.push(['الإجمالي',...cols.map(([k])=>T[k])]);
@@ -471,7 +471,7 @@ function monthPicker(){const sel=selMs(), all=allMonths();
 function monthTot(m){const T={...dayTot(null),diff:0,days:0};
   for(const dt of monthDays(m)){const t=dayTot(days[dt]);for(const k in t)if(k in T)T[k]+=t[k]||0;if(hasData(t))T.days++;}
   T.diff=sumDiff(m);return T;}
-const TH=`<th class="n">صافي الكاش</th><th class="n">الإجمالي</th><th class="n">كاش</th><th class="n">فيزا</th><th class="n">طلبات</th><th></th><th class="n">مصروفات</th><th class="n">سلف</th><th class="n">مصروف خارجي</th><th class="n">تمويل</th><th class="n">عجز / زيادة</th>`;
+const TH=`<th class="n">صافي الكاش</th><th class="n">الإجمالي</th><th class="n">كاش</th><th class="n">فيزا</th><th class="n">طلبات</th><th></th><th class="n">مصروفات</th><th class="n">سلف</th><th class="n">مصروف خارجي</th><th class="n">من البنك</th><th class="n">تمويل</th><th class="n">عجز / زيادة</th>`;
 function renderMonth(){
   const ms=selMs(), multi=ms.length>1; if(!multi)curMonth=ms[0];
   const T=dayTot(null);
@@ -479,8 +479,8 @@ function renderMonth(){
   const netCash=T.net, totDiff=mts.reduce((s,[,t])=>s+t.diff,0);
   const bar=(t,max)=>`<td><div class="mini" title="كاش / فيزا / طلبات" style="width:${Math.max(4,Math.round(t.rev/max*120))}px">${t.rev?`<i style="width:${t.cash/t.rev*100}%;background:var(--cash)"></i><i style="width:${t.visa/t.rev*100}%;background:var(--visa)"></i><i style="width:${t.talabat/t.rev*100}%;background:var(--talabat)"></i>`:''}</div></td>`;
   const nums=t=>`<td class="n">${t.cash?fmt(t.cash):''}</td><td class="n">${t.visa?fmt(t.visa):''}</td><td class="n">${t.talabat?fmt(t.talabat):''}</td>`;
-  const tail=t=>`<td class="n">${t.exp?fmt(t.exp):''}</td><td class="n">${t.adv?fmt(t.adv):''}</td><td class="n">${t.ext?fmt(t.ext):''}</td><td class="n">${t.fin?fmt(t.fin):''}</td>`;
-  const foot=(first)=>`<tfoot><tr><td>الإجمالي</td><td class="n">${fmt(first)}</td><td class="n">${fmt(T.rev)}</td><td class="n">${fmt(T.cash)}</td><td class="n">${fmt(T.visa)}</td><td class="n">${fmt(T.talabat)}</td><td></td><td class="n">${fmt(T.exp)}</td><td class="n">${fmt(T.adv)}</td><td class="n">${fmt(T.ext)}</td><td class="n">${fmt(T.fin)}</td><td class="n">${fmt(totDiff)}</td><td></td></tr></tfoot>`;
+  const tail=t=>`<td class="n">${t.exp?fmt(t.exp):''}</td><td class="n">${t.adv?fmt(t.adv):''}</td><td class="n">${t.ext?fmt(t.ext):''}</td><td class="n">${t.bank?fmt(t.bank):''}</td><td class="n">${t.fin?fmt(t.fin):''}</td>`;
+  const foot=(first)=>`<tfoot><tr><td>الإجمالي</td><td class="n">${fmt(first)}</td><td class="n">${fmt(T.rev)}</td><td class="n">${fmt(T.cash)}</td><td class="n">${fmt(T.visa)}</td><td class="n">${fmt(T.talabat)}</td><td></td><td class="n">${fmt(T.exp)}</td><td class="n">${fmt(T.adv)}</td><td class="n">${fmt(T.ext)}</td><td class="n">${fmt(T.bank)}</td><td class="n">${fmt(T.fin)}</td><td class="n">${fmt(totDiff)}</td><td></td></tr></tfoot>`;
   let body;
   if(multi){const max=Math.max(1,...mts.map(([,t])=>t.rev));
     body=`<thead><tr><th>الشهر</th>${TH}<th class="n">أيام بها حركة</th></tr></thead><tbody>${mts.map(([m,t])=>`<tr class="click" data-onemonth="${m}" tabindex="0"><td class="num">${m}</td>
@@ -492,7 +492,7 @@ function renderMonth(){
   return `<div class="bar"><h2>${multi?'ملخص الشهور':'ملخص الشهر'} · ${esc(brLabel())}</h2>${monthPicker()}<span class="grow"></span>${dl?'<button class="btn" data-act="csv">تصدير Excel</button>':''}</div>
   <div class="kpis">
     ${kpi('إجمالي الإيراد',T.rev)}${kpi('كاش',T.cash,'cash')}${kpi('فيزا',T.visa,'visa')}${kpi('طلبات',T.talabat,'talabat')}
-    ${kpi('مصروفات',T.exp,'exp')}${kpi('سلف',T.adv,'adv')}${kpi('مصروف خارجي',T.ext)}${kpi('تمويل',T.fin)}
+    ${kpi('مصروفات',T.exp,'exp')}${kpi('سلف',T.adv,'adv')}${kpi('مصروف خارجي',T.ext)}${kpi('مصروف من البنك',T.bank)}${kpi('تمويل',T.fin)}
     ${kpi('صافي الكاش في الدرج',netCash,'',true)}
   </div>
   <section class="panel"><div class="scroll"><table>${body}</table></div></section>
@@ -503,7 +503,7 @@ function monthLines(m){
   const out=[];
   for(const dt of monthDays(m||curMonth)){const d=days[dt];if(!d)continue;
     (d.rows||[]).forEach((r,i)=>{for(const k of EXPK){const a=num(r[k]);if(!a)continue;
-      out.push({dt,i,desc:r.desc,amt:a,kind:k,cat:k==='adv'&&!num(r.exp)&&!num(r.ext)?ADV_CAT:(k==='adv'?ADV_CAT:(r.cat||autoCat(r.desc)||''))});}});}
+      out.push({dt,i,desc:r.desc,amt:a,kind:k,cat:k==='adv'&&!num(r.exp)&&!num(r.ext)&&!num(r.bank)?ADV_CAT:(k==='adv'?ADV_CAT:(r.cat||autoCat(r.desc)||''))});}});}
   return out;
 }
 function dataMonths(){return [...new Set(Object.keys(days).map(k=>k.slice(0,7)))].sort().slice(-12);}
@@ -529,7 +529,7 @@ function renderCmp(){
    <tr><td>صافي (الإيراد − المصروفات)</td>${data.map(x=>`<td class="n">${fmt(x.rev-x.tot)}</td>`).join('')}<td class="n">${fmt(sumRow(x=>x.rev-x.tot))}</td><td class="n">${fmt(sumRow(x=>x.rev-x.tot)/n)}</td>${n>1?chg(last.rev-last.tot,prev.rev-prev.tot):''}</tr>
   </tfoot></table></div>`:'<div class="empty">لا توجد بيانات بعد.</div>'}
   </section>
-  <p class="note">المصروفات هنا تشمل المصروفات والمصروف الخارجي والسلف. يُعرض آخر 12 شهراً فيها بيانات.</p>`;
+  <p class="note">المصروفات هنا تشمل المصروفات والمصروف الخارجي والمصروف من البنك والسلف. يُعرض آخر 12 شهراً فيها بيانات.</p>`;
 }
 function renderCats(){
   const modeBar=`<div class="bar"><div class="seg" role="tablist"><button class="btn${catMode==='one'?' on':''}" data-mode="one" aria-pressed="${catMode==='one'}">شهر واحد</button><button class="btn${catMode==='cmp'?' on':''}" data-mode="cmp" aria-pressed="${catMode==='cmp'}">مقارنة الشهور</button></div>${catMode==='cmp'&&dl?'<span class="grow"></span><button class="btn" data-act="cmpcsv">تصدير Excel</button>':''}</div>`;
@@ -544,11 +544,11 @@ function renderCatsOne(){
   const uncDescs={}; for(const l of unc){const k=l.desc||'(بدون وصف)';(uncDescs[k]=uncDescs[k]||{sum:0,n:0}).sum+=l.amt;uncDescs[k].n++;}
   const fl=focusCat?L.filter(l=>(l.cat||'غير مصنف')===focusCat):null;
   return `<div class="bar"><h2>تحليل المصروفات · ${esc(brLabel())}</h2><select id="mpick" aria-label="الشهر">${monthOptions()}</select><span class="grow"></span><span class="num">${fmt(total)}</span></div>
-  <section class="panel"><div class="ph"><h2>التصنيفات</h2><span class="note">تشمل المصروفات والمصروف الخارجي والسلف · اضغط على تصنيف لعرض بنوده</span></div>
+  <section class="panel"><div class="ph"><h2>التصنيفات</h2><span class="note">تشمل المصروفات والمصروف الخارجي ومن البنك والسلف · اضغط على تصنيف لعرض بنوده</span></div>
   ${arr.length?arr.map(([c,v])=>`<div class="catrow" data-cat="${esc(c)}" tabindex="0"><span class="${c==='غير مصنف'?'uncat':''}" style="font-weight:600">${esc(c)} <span class="note">(${v.n})</span></span><div class="track"><i style="width:${v.sum/max*100}%;${c==='غير مصنف'?'background:var(--exp)':c===ADV_CAT?'background:var(--adv)':''}"></i></div><span class="amt">${fmt(v.sum)}<span class="pct">${total?Math.round(v.sum/total*100):0}%</span></span></div>`).join(''):'<div class="empty">لا توجد مصروفات في هذا الشهر.</div>'}
   </section>
   ${fl?`<section class="panel"><div class="ph"><h2>بنود: ${esc(focusCat)}</h2><button class="btn" data-act="clearcat">إغلاق</button></div><div class="scroll"><table><thead><tr><th>التاريخ</th><th>الوصف</th><th class="n">المبلغ</th><th></th></tr></thead><tbody>
-    ${fl.map(l=>`<tr class="click" data-go="${l.dt}"><td class="num">${l.dt.slice(5)}</td><td>${esc(l.desc)||'—'}</td><td class="n">${fmt(l.amt)}</td><td>${l.kind==='ext'?'<span class="chip visa">مصروف خارجي</span>':l.kind==='adv'?'<span class="chip adv">سلفة</span>':''}</td></tr>`).join('')}
+    ${fl.map(l=>`<tr class="click" data-go="${l.dt}"><td class="num">${l.dt.slice(5)}</td><td>${esc(l.desc)||'—'}</td><td class="n">${fmt(l.amt)}</td><td>${l.kind==='ext'?'<span class="chip visa">مصروف خارجي</span>':l.kind==='bank'?'<span class="chip visa">من البنك</span>':l.kind==='adv'?'<span class="chip adv">سلفة</span>':''}</td></tr>`).join('')}
   </tbody></table></div></section>`:''}
   ${Object.keys(uncDescs).length?`<section class="panel"><div class="ph"><h2>أوصاف غير مصنفة</h2><span class="note">اختر التصنيف مرة واحدة ويتم حفظه لكل البنود بنفس الوصف</span></div><div class="scroll"><table><thead><tr><th>الوصف</th><th class="n">عدد</th><th class="n">المبلغ</th><th>التصنيف</th></tr></thead><tbody>
     ${Object.entries(uncDescs).sort((a,b)=>b[1].sum-a[1].sum).map(([k,v],i)=>`<tr><td>${esc(k)}</td><td class="n">${v.n}</td><td class="n">${fmt(v.sum)}</td><td>${canSet()&&k!=='(بدون وصف)'?`<select id="u-${i}" data-map="${esc(k)}">${catOptions('',true,'اختر…')}</select>`:''}</td></tr>`).join('')}
@@ -685,7 +685,7 @@ function fbErr(e){const c=e&&e.code||'';return c==='noacct'?'حسابك يحتا
 async function pack(obj,k=DK){if(!encOn())return obj;if(!k)throw new Error('locked');return encDoc(obj,k);}
 
 /* ---------- users & permissions ---------- */
-function brLabel(){return curBranch==='all'?'الفرعين معاً':BR[curBranch].name;}
+function brLabel(){return curBranch==='all'?'كل الفروع':BR[curBranch].name;}
 function U(){return me?users[me]:null;}
 function has(p){const u=U();if(!u)return false;if(u.role==='owner')return true;return !!(u.perms||{})[p];}
 function userBranches(){const u=U();if(!u)return[];if(u.role==='owner')return Object.keys(BR);return (u.branches||[]).filter(b=>BR[b]);}
@@ -720,7 +720,7 @@ function pickBranch(){const bs=userBranches();if(!bs.length){curBranch='50';appl
 function mergedDays(){const m={};for(const b of Object.keys(BR))for(const[k,d]of Object.entries(daysBy[b])){const x=m[k]||(m[k]={date:k,rows:[],status:'closed',diff:0});x.rows.push(...(d.rows||[]).filter(rowFilled));x.diff+=d.diff||0;}return m;}
 function applyBranch(){days=curBranch==='all'?mergedDays():daysBy[curBranch];}
 function renderBranchPick(){const el=$('#bpick');const bs=userBranches();
-  el.innerHTML=bs.map(b=>`<option value="${b}"${b===curBranch?' selected':''}>${esc(BR[b].name)}</option>`).join('')+(bs.length>1?`<option value="all"${curBranch==='all'?' selected':''}>الفرعين معاً</option>`:'');
+  el.innerHTML=bs.map(b=>`<option value="${b}"${b===curBranch?' selected':''}>${esc(BR[b].name)}</option>`).join('')+(bs.length>1?`<option value="all"${curBranch==='all'?' selected':''}>كل الفروع</option>`:'');
   el.hidden=bs.length<1;}
 $('#bpick').addEventListener('change',e=>{flushAllAudit();curBranch=e.target.value;try{localStorage.setItem('cashier.branch',curBranch);}catch(_){}applyBranch();render();});
 $('#signout').addEventListener('click',()=>{logAudit({a:'تسجيل خروج'});kick('تم تسجيل الخروج.');});
@@ -771,7 +771,7 @@ function renderGate(){
       <label>كلمة السر<input id="g-pw" type="password" required autocomplete="current-password" dir="ltr"></label>
       <div class="gerr" id="gerr">${esc(gateMsg)}</div><button class="btn pri" type="submit">نقل البيانات والدخول</button>
       <button class="btn" type="button" data-gfresh>أو ابدأ سيستم جديد فاضي</button></form>`;
-    if(gateStep==='fresh')h=`<form class="login" id="gform" data-step="setup"><h2>إعداد Cashier</h2><p class="note">أنشئ حساب المالك. هيكون عنده كل الصلاحيات والفرعين، ومنه تضيف باقي المستخدمين. بيانات السيستم بتتشفر بكلمة السر دي.</p>
+    if(gateStep==='fresh')h=`<form class="login" id="gform" data-step="setup"><h2>إعداد Cashier</h2><p class="note">أنشئ حساب المالك. هيكون عنده كل الصلاحيات وكل الفروع، ومنه تضيف باقي المستخدمين. بيانات السيستم بتتشفر بكلمة السر دي.</p>
       <label>الاسم<input id="g-name" required autocomplete="name"></label><label>اسم المستخدم<input id="g-user" required autocomplete="username" dir="ltr"></label>
       <label>كلمة السر<input id="g-pw" type="password" required minlength="8" autocomplete="new-password" dir="ltr"></label><label>تأكيد كلمة السر<input id="g-pw2" type="password" required autocomplete="new-password" dir="ltr"></label>
       <div class="gerr" id="gerr">${esc(gateMsg)}</div><button class="btn pri" type="submit">إنشاء الحساب والدخول</button><button class="btn" type="button" data-gback>رجوع</button></form>`;
@@ -886,7 +886,7 @@ function renderUsers(){
     <td class="acts">${ro||self?(self?`<button class="btn" data-act="mypw">تغيير كلمة السر</button>`:''):`<button class="btn" data-ulock="${esc(k)}">${u.locked?'تفعيل':'إيقاف'}</button><button class="btn" data-utemp="${esc(k)}">كلمة سر مؤقتة</button>${confirmDel===k?`<button class="btn danger" data-udel="${esc(k)}">تأكيد الحذف</button>`:`<button class="x" data-uask="${esc(k)}" aria-label="حذف">×</button>`}`}</td></tr>`}).join('')}
   </tbody></table></div></section>
   ${pwFor===me?'':''}
-  <p class="note">المالك عنده كل الصلاحيات والفرعين. Firebase بيوقف المحاولات المتكررة تلقائياً. أي حد يفضل ${IDLE_MIN} دقيقة من غير نشاط بيخرج تلقائياً. الكاشير بدون صلاحية "تعديل الأيام السابقة" يعدّل اليوم وأمس فقط، وماحدش يعدّل يومية مقفولة إلا اللي عنده صلاحية "فتح يومية مقفولة".</p>`;
+  <p class="note">المالك عنده كل الصلاحيات وكل الفروع. Firebase بيوقف المحاولات المتكررة تلقائياً. أي حد يفضل ${IDLE_MIN} دقيقة من غير نشاط بيخرج تلقائياً. الكاشير بدون صلاحية "تعديل الأيام السابقة" يعدّل اليوم وأمس فقط، وماحدش يعدّل يومية مقفولة إلا اللي عنده صلاحية "فتح يومية مقفولة".</p>`;
 }
 function userAct(fn,what){if(!has('users')||!canWrite)return;fn();saveUsers();if(what)logAudit({a:what});render();}
 app.addEventListener('click',async e=>{
@@ -980,7 +980,7 @@ function imMsg(st){let rev=0,ex=0,nd=0,old=0;
 function renderBackup(){
   return `<div class="bar"><h2>النسخ الاحتياطي والتشفير</h2></div>`+encStatus()+`
   <section class="panel"><div class="ph"><h2>تحميل نسخة احتياطية</h2></div>
-   <div class="adds" style="border:0"><p class="note" style="margin:0;flex-basis:100%">النسخة فيها كل اليوميات للفرعين والتصنيفات والمستخدمين وسجل التعديلات، وهي مشفّرة زي ما هي في السيستم. ماتتفتحش غير بكلمة سر مستخدم من السيستم.</p>
+   <div class="adds" style="border:0"><p class="note" style="margin:0;flex-basis:100%">النسخة فيها كل اليوميات لكل الفروع والتصنيفات والمستخدمين وسجل التعديلات، وهي مشفّرة زي ما هي في السيستم. ماتتفتحش غير بكلمة سر مستخدم من السيستم.</p>
    ${dl?'<button class="btn pri" data-act="backup">تحميل نسخة احتياطية الآن</button>':'<span class="note">التحميل غير متاح في هذا العرض.</span>'}</div></section>
   <section class="panel"><div class="ph"><h2>نسخة يومية</h2></div><div class="adds" style="border:0"><p class="note" style="margin:0">حمّل نسخة من الزرار اللي فوق في آخر كل يوم واحفظها على Google Drive. ممكن كمان تفعّل Scheduled backups لقاعدة البيانات من Firebase Console (محتاجة خطة Blaze).</p></div></section>
   ${U().role==='owner'&&canWrite?`<section class="panel"><div class="ph"><h2>استيراد يومية شهر من Excel</h2><span class="note">للمالك فقط · ملف فيه شيت لكل يوم (1، 2، 3 …) بنفس شكل اليومية</span></div>
