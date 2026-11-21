@@ -420,8 +420,8 @@ function renderDay(){
     <button class="btn" data-act="next" aria-label="اليوم التالي">←</button>
     <button class="btn" data-act="today">اليوم</button>
     <div class="daylabel">${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}<span>${DAYNAMES[dt.getDay()]}</span></div>
-    <span class="grow"></span>${d.by?`<span class="note">آخر تعديل: ${esc(userName(d.by))} · ${esc(fmtTime(d.at))}</span>`:''}${repBtns()}<button class="btn${rng?' on':''}" data-act="rng" aria-expanded="${!!rng}">⬇ تنزيل البيانات</button>
-  </div>${rngPanel()}${lockBanner()}${!ce&&curBranch!=='all'&&!isClosed(curBranch,curDate)&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض أكتر من فرع مع بعض للعرض فقط. اختار فرع واحد من فوق علشان تدخّل بيانات.</div>':''}
+    <span class="grow"></span>${d.by?`<span class="note">آخر تعديل: ${esc(userName(d.by))} · ${esc(fmtTime(d.at))}</span>`:''}${repBtns()}<button class="btn${rng?' on':''}" data-act="rng" aria-expanded="${!!rng}">⬇ تنزيل البيانات</button>${ce?`<button class="btn danger" data-act="delday">🗑 حذف بيانات اليوم</button>`:''}
+  </div>${delPanel(d)}${rngPanel()}${lockBanner()}${!ce&&curBranch!=='all'&&!isClosed(curBranch,curDate)&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض أكتر من فرع مع بعض للعرض فقط. اختار فرع واحد من فوق علشان تدخّل بيانات.</div>':''}
   <div class="kpis k12" id="daykpis">${dayKpis(t)}</div>
   ${curBranch!=='all'?closeBox(d,t):''}
   <section class="panel sheet"><div class="scroll"><table class="xl">
@@ -666,7 +666,21 @@ async function exportCsv(){
 const repBtns=()=>`<button class="btn" data-act="print">🖨 طباعة</button><button class="btn" data-act="xlsx">⬇ Excel</button>`;
 const dmy=dt=>`${dt.slice(8,10)}/${dt.slice(5,7)}/${dt.slice(0,4)}`;
 const z=v=>v?v:'';
-let rng=null;
+let rng=null, delAsk=null;
+function delPanel(d){const key=curBranch+'|'+curDate;if(delAsk!==key)return '';const t=dayTot(d);const n=(d.rows||[]).filter(rowFilled).length;
+  return `<div class="ro-banner lockb">هتمسح كل بيانات يوم <b>${dmy(curDate)}</b> في فرع <b>${esc(BR[curBranch].name)}</b>: ${n} صف · إيرادات <b class="num">${fmt(t.rev)}</b> · مصروفات <b class="num">${fmt(t.expAll)}</b>. الحذف هيتسجل في سجل التعديلات.
+   <div class="bar" style="margin-top:8px"><button class="btn danger" data-act="delyes">تأكيد الحذف</button><button class="btn" data-act="delno">إلغاء</button></div></div>`;}
+async function deleteDay(){const br=curBranch,date=curDate,key=br+'|'+date;if(delAsk!==key||!canEditDay())return;
+  const d=daysBy[br][date];const t=dayTot(d);const n=(d&&d.rows||[]).filter(rowFilled).length;delAsk=null;
+  clearTimeout(timers[key]);clearTimeout(aTimers[key]);delete aTimers[key];delete dirty[key];setStatus('جارٍ الحذف…');
+  try{await withTimeout(db.doc(BR[br].coll+'/'+date).delete(),30000);delete daysBy[br][date];delete lastSaved[key];applyBranch();
+    logAudit({br,d:date,a:`حذف بيانات يوم ${dmy(date)} (${n} صف · إيرادات ${fmt(t.rev)} · مصروفات ${fmt(t.expAll)})`});setStatus('تم الحذف ✓');}
+  catch(e){setStatus('تعذّر الحذف، حاول مرة أخرى');}
+  render();}
+app.addEventListener('click',e=>{const t=e.target.closest('[data-act="delday"],[data-act="delyes"],[data-act="delno"]');if(!t)return;const a=t.dataset.act;
+  if(a==='delday'){const d=days[curDate];if(!d||!(d.rows||[]).some(rowFilled))return setStatus('اليوم ده مافيهوش بيانات');flushAllAudit();delAsk=curBranch+'|'+curDate;return render();}
+  if(a==='delno'){delAsk=null;return render();}
+  if(a==='delyes')deleteDay();});
 function rngPanel(){if(!rng)return '';
   return `<section class="panel rngp"><div class="adds" style="border:0;align-items:flex-end">
    <label class="ck">من <input type="date" id="rng-f" value="${rng.f}"></label>
