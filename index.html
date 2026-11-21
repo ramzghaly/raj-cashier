@@ -420,8 +420,8 @@ function renderDay(){
     <button class="btn" data-act="next" aria-label="اليوم التالي">←</button>
     <button class="btn" data-act="today">اليوم</button>
     <div class="daylabel">${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}<span>${DAYNAMES[dt.getDay()]}</span></div>
-    <span class="grow"></span>${d.by?`<span class="note">آخر تعديل: ${esc(userName(d.by))} · ${esc(fmtTime(d.at))}</span>`:''}${repBtns()}
-  </div>${lockBanner()}${!ce&&curBranch!=='all'&&!isClosed(curBranch,curDate)&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض أكتر من فرع مع بعض للعرض فقط. اختار فرع واحد من فوق علشان تدخّل بيانات.</div>':''}
+    <span class="grow"></span>${d.by?`<span class="note">آخر تعديل: ${esc(userName(d.by))} · ${esc(fmtTime(d.at))}</span>`:''}${repBtns()}<button class="btn${rng?' on':''}" data-act="rng" aria-expanded="${!!rng}">⬇ تنزيل البيانات</button>
+  </div>${rngPanel()}${lockBanner()}${!ce&&curBranch!=='all'&&!isClosed(curBranch,curDate)&&canWrite&&has('day_edit')&&dayStatus(d)==='open'?'<div class="ro-banner">هذا اليوم مغلق للتعديل. صلاحيتك تسمح بتعديل اليوم وأمس فقط.</div>':''}${curBranch==='all'?'<div class="ro-banner">أنت تعرض أكتر من فرع مع بعض للعرض فقط. اختار فرع واحد من فوق علشان تدخّل بيانات.</div>':''}
   <div class="kpis k12" id="daykpis">${dayKpis(t)}</div>
   ${curBranch!=='all'?closeBox(d,t):''}
   <section class="panel sheet"><div class="scroll"><table class="xl">
@@ -666,6 +666,29 @@ async function exportCsv(){
 const repBtns=()=>`<button class="btn" data-act="print">🖨 طباعة</button><button class="btn" data-act="xlsx">⬇ Excel</button>`;
 const dmy=dt=>`${dt.slice(8,10)}/${dt.slice(5,7)}/${dt.slice(0,4)}`;
 const z=v=>v?v:'';
+let rng=null;
+function rngPanel(){if(!rng)return '';
+  return `<section class="panel rngp"><div class="adds" style="border:0;align-items:flex-end">
+   <label class="ck">من <input type="date" id="rng-f" value="${rng.f}"></label>
+   <label class="ck">إلى <input type="date" id="rng-t" value="${rng.t}"></label>
+   <button class="btn pri" data-act="rngx">⬇ Excel</button><button class="btn" data-act="rngp">🖨 PDF / طباعة</button>
+   <span class="note">${esc(brLabel())} · كل صفوف اليومية في الفترة دي تحت بعض</span></div></section>`;}
+function rangeReport(){if(!rng)return null;let f=rng.f,t=rng.t;if(!f||!t)return null;if(f>t)[f,t]=[t,f];
+  const bs=curBranch==='all'?selBr:[curBranch], multi=bs.length>1;
+  const T={rev:0,exp:0};for(const k of [...REV,...EXPK])T[k]=0;const rows=[];
+  const dates=new Set();for(const b of bs)for(const k of Object.keys(daysBy[b]))if(k>=f&&k<=t)dates.add(k);
+  for(const dt of [...dates].sort())for(const b of bs){const d=daysBy[b][dt];if(!d)continue;
+    for(const r of (d.rows||[]).filter(rowFilled)){const rv=revSum(r),ex=expSum(r);T.rev+=rv;T.exp+=ex;for(const k of [...REV,...EXPK])T[k]+=num(r[k]);
+      rows.push([dmy(dt),...(multi?[BR[b].name]:[]),z(rv),...REV.map(k=>z(num(r[k]))),z(ex),...EXPK.map(k=>z(num(r[k]))),lineCat(r),r.desc||'']);}}
+  const pre=multi?2:1, brA=bs.map(b=>BR[b].en).join('+');
+  return {key:'بيانات اليومية',title:'بيانات اليومية',sub:`${brLabel()} · من ${dmy(f)} إلى ${dmy(t)}`,file:`Daily-Data-${brA}-${f}_${t}`,sections:[
+    {name:'بيانات اليومية',head:[[{t:'',c:pre},{t:'الإيرادات',c:6},{t:'المصروفات',c:7}],['التاريخ',...(multi?['الفرع']:[]),'الإجمالي',...REV.map(k=>LBL[k]),'الإجمالي',...EXPK.map(k=>LBL[k]),'التوجيه','الوصف']],rows,
+     foot:['الإجمالي',...(multi?['']:[]),T.rev,...REV.map(k=>T[k]),T.exp,...EXPK.map(k=>T[k]),'','']}]};}
+app.addEventListener('click',e=>{const t=e.target.closest('[data-act="rng"],[data-act="rngx"],[data-act="rngp"]');if(!t)return;const a=t.dataset.act;
+  if(a==='rng'){rng=rng?null:{f:curDate.slice(0,8)+'01',t:curDate};return render();}
+  const r=rangeReport();if(!r)return setStatus('اختار التاريخ من وإلى');if(!r.sections[0].rows.length)return setStatus('مافيش بيانات في الفترة دي');
+  if(a==='rngx')xlsxReport(r);else printReport(r);});
+app.addEventListener('change',e=>{if(!rng)return;if(e.target.id==='rng-f')rng.f=e.target.value;if(e.target.id==='rng-t')rng.t=e.target.value;});
 function reportFor(v){
   const br=brLabel(), brA=(curBranch==='all'?selBr:[curBranch]).map(b=>BR[b].en).join('+');
   if(v==='day'){const d=days[curDate]||{rows:[]};const t=dayTot(d);const dt=new Date(curDate+'T00:00:00');
@@ -1110,12 +1133,12 @@ function encStatus(){
 }
 function imMsg(st){let rev=0,ex=0,nd=0,old=0;
   for(const[dt,rows]of Object.entries(st.days)){const t=dayTot({rows});rev+=t.rev;ex+=t.expAll;if(rows.length)nd++;}
-  for(const m of st.months)for(const dt of monthDays(m))if(daysBy[st.br][dt]&&(daysBy[st.br][dt].rows||[]).some(rowFilled))old++;
+  for(const m of st.months)for(const dt of monthDays(m))if((st.days[dt]||[]).length&&daysBy[st.br][dt]&&(daysBy[st.br][dt].rows||[]).some(rowFilled))old++;
   const closedMs=st.months.filter(m=>isClosed(st.br,m));
   return `الملف <b>${esc(st.file)}</b>: ${st.months.length>1?'الشهور':'شهر'} <b>${esc(st.months.join('، '))}</b>، فيه ${nd} يوم بحركة · إجمالي الإيرادات <b class="num">${fmt(rev)}</b> · إجمالي المصروفات <b class="num">${fmt(ex)}</b>.<br>`+
     (st.bad?`<span style="color:var(--exp)">${st.bad} صف من غير تاريخ صحيح، ومش هيتستوردوا.</span><br>`:'')+
     (closedMs.length?`<span style="color:var(--exp)"><b>مايتعملش استيراد:</b> فترة ${esc(closedMs.join('، '))} مقفولة لفرع ${esc(BR[st.br].name)}. افتحها الأول من «غلق الفترات».</span>`:
-    old?`<span style="color:var(--exp)">فرع ${esc(BR[st.br].name)} فيه ${old} يوم مسجّل في ${st.months.length>1?'الشهور دي':'الشهر ده'}، وهيتمسحوا ويتحط مكانهم بيانات الملف.</span>`:`فرع ${esc(BR[st.br].name)} مافيهوش بيانات في ${st.months.length>1?'الشهور دي':'الشهر ده'}.`);}
+    old?`<span style="color:var(--exp)">فرع ${esc(BR[st.br].name)} فيه ${old} يوم مسجّل في ${st.months.length>1?'الشهور دي':'الشهر ده'}. صفوف الملف هتتضاف تحت الموجود من غير ما يتمسح حاجة، فاتأكد إن الملف ده ماتستوردش قبل كده عشان مايتكررش.</span>`:`فرع ${esc(BR[st.br].name)} مافيهوش بيانات في ${st.months.length>1?'الشهور دي':'الشهر ده'}.`);}
 function renderBackup(){
   return `<div class="bar"><h2>النسخ الاحتياطي والتشفير</h2></div>`+encStatus()+`
   <section class="panel"><div class="ph"><h2>تحميل نسخة احتياطية</h2></div>
@@ -1127,7 +1150,7 @@ function renderBackup(){
    <div class="adds" style="border:0;flex-direction:column;align-items:stretch">
    <label class="ck">الفرع <select id="im-br">${Object.entries(BR).map(([b,x])=>`<option value="${b}"${b===(imBr||imState&&imState.br||(curBranch==='all'?selBr[0]:curBranch))?' selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
    <input type="file" id="im-file" accept=".xlsx,.xlsm,.xls">
-   ${imState?`<div class="ro-banner">${imState.msg}</div>${imState.ready&&!imState.months.some(m=>isClosed(imState.br,m))?`<div class="bar"><button class="btn danger" data-act="doimport">تأكيد: استبدال ${esc(imState.months.join('، '))} في فرع ${esc(BR[imState.br].name)}</button><button class="btn" data-act="cancelimport">إلغاء</button></div>`:''}`:''}
+   ${imState?`<div class="ro-banner">${imState.msg}</div>${imState.ready&&!imState.months.some(m=>isClosed(imState.br,m))?`<div class="bar"><button class="btn pri" data-act="doimport">تأكيد: إضافة ${esc(imState.months.join('، '))} في فرع ${esc(BR[imState.br].name)}</button><button class="btn" data-act="cancelimport">إلغاء</button></div>`:''}`:''}
    </div></section>`:''}
   ${U().role==='owner'?`<section class="panel"><div class="ph"><h2>استرجاع من نسخة احتياطية</h2><span class="note">للمالك فقط</span></div>
    <div class="adds" style="border:0;flex-direction:column;align-items:stretch">
@@ -1198,20 +1221,21 @@ function downloadTemplate(){
   saveWb(wb,'Cashier-Import-Form.xlsx');
 }
 async function doImport(){
-  const st=imState;if(!st||!st.ready||U().role!=='owner')return;
+  const st=imState;if(!st||!st.ready||U().role!=='owner')return;st.months=[...new Set(Object.keys(st.days).filter(dt=>(st.days[dt]||[]).length).map(dt=>dt.slice(0,7)))].sort();
   if(st.months.some(m=>isClosed(st.br,m))){imState={...st,msg:imMsg(st)};return render();}
   const br=st.br, coll=BR[br].coll, store=daysBy[br];
   imState={...st,ready:false,msg:'جارٍ الاستيراد…'};render();
-  const dates=st.months.flatMap(monthDays);let n=0;
+  const dates=Object.keys(st.days).filter(dt=>(st.days[dt]||[]).length).sort();let n=0;
+  if(!dates.length){imState={...st,ready:false,msg:'الملف مافيهوش صفوف فيها أرقام.'};return render();}
   try{
     for(const dt of dates){const rows=st.days[dt]||[];const key=br+'|'+dt;
       clearTimeout(timers[key]);delete dirty[key];
       const ref=db.doc(coll+'/'+dt);
-      if(!rows.length){if(store[dt]||raw.days[br][dt])await withTimeout(ref.delete(),30000);delete store[dt];}
-      else{const o={date:dt,rows,by:me,at:new Date().toISOString(),imported:true};
+      if(!rows.length){n++;continue;}
+      else{const old=store[dt]||null;const o={...(old||{}),date:dt,rows:[...((old&&old.rows)||[]).filter(rowFilled),...rows],by:me,at:new Date().toISOString(),imported:true};
         await withTimeout(ref.set(await pack(o)),30000);store[dt]={...o};lastSaved[key]=JSON.stringify(store[dt]);}
       n++;imState={...st,ready:false,msg:`جارٍ الاستيراد… ${n}/${dates.length}`};const b=document.querySelector('.ro-banner');if(b)b.textContent=imState.msg;}
-    logAudit({br,a:`استيراد يومية ${st.months.join('، ')} من Excel (${st.file})`});
+    logAudit({br,a:`استيراد (إضافة) ${dates.length} يوم في ${st.months.join('، ')} من Excel (${st.file})`});
     applyBranch();imState=null;
     if(userBranches().includes(br))setBranches([br]);
     curMonth=st.months[0];selMonths=null;view='total';render();setStatus('تم الاستيراد ✓');
