@@ -1,19 +1,18 @@
 {
+  "id": "/raj-cashier/",
   "name": "Cashier · RAJ",
   "short_name": "Cashier",
-  "description": "كشف الخزينة اليومي لفروع RAJ",
+  "description": "يومية الكاشير لفروع RAJ",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "./",
-  "scope": "./",
-  "id": "./",
+  "start_url": "/raj-cashier/",
+  "scope": "/raj-cashier/",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#F3F6F5",
+  "background_color": "#F4F6F5",
   "theme_color": "#0E6E55",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/raj-cashier/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/raj-cashier/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/raj-cashier/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
